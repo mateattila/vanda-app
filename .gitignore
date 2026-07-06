@@ -1,0 +1,4 @@
+# Keep docs and config files
+!docs
+!CLAUDE.md
+!AGENTS.md
