@@ -196,26 +196,11 @@ struct AppearanceSettingsView: View {
 
     private func applyPhoto(from item: PhotosPickerItem) async {
         guard let data = try? await item.loadTransferable(type: Data.self),
-              let downscaled = downscaledJPEG(from: data) else { return }
+              let downscaled = ImageDownscaler.jpegData(from: data) else { return }
         let settings = editableSettings()
         settings.photoData = downscaled
         settings.backgroundKind = .photo
         photoPickerItem = nil
-    }
-
-    /// A háttérfotót ~2000 px-re kicsinyítjük: a CloudKit-szinkron és a memória
-    /// kedvéért nem tárolunk többmegabájtos eredetit.
-    private func downscaledJPEG(from data: Data, maxDimension: CGFloat = 2000) -> Data? {
-        guard let image = UIImage(data: data) else { return nil }
-        let size = image.size
-        let scale = min(1, maxDimension / max(size.width, size.height))
-        guard scale < 1 else { return image.jpegData(compressionQuality: 0.85) }
-        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: newSize)
-        let resized = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: newSize))
-        }
-        return resized.jpegData(compressionQuality: 0.85)
     }
 
     // MARK: - Kiemelőszín

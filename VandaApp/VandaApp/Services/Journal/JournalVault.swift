@@ -121,6 +121,21 @@ final class JournalVault {
         guard let blob = entry.encryptedBlob else { throw JournalCryptoError.invalidEnvelope }
         return try JSONDecoder().decode(JournalPayload.self, from: JournalCrypto.decrypt(blob, contentKey: contentKey))
     }
+
+    // MARK: - Fotók (kizárólag titkosítva)
+
+    func sealPhoto(_ imageData: Data) throws -> JournalPhoto {
+        guard let contentKey else { throw JournalCryptoError.wrongKey }
+        let photo = JournalPhoto()
+        photo.encryptedData = try JournalCrypto.encrypt(imageData, contentKey: contentKey)
+        return photo
+    }
+
+    func openPhoto(_ photo: JournalPhoto) throws -> Data {
+        guard let contentKey else { throw JournalCryptoError.wrongKey }
+        guard let blob = photo.encryptedData else { throw JournalCryptoError.invalidEnvelope }
+        return try JournalCrypto.decrypt(blob, contentKey: contentKey)
+    }
 }
 
 /// Egy bejegyzés olvasható tartalma — CSAK titkosítva tárolódik/szinkronizálódik.

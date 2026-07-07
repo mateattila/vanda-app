@@ -20,6 +20,7 @@ enum VandaStore {
         Activity.self,
         JournalEntry.self,
         JournalAuditEvent.self,
+        JournalPhoto.self,
         DailyTask.self,
         JournalTemplate.self,
         ThemeSettings.self,

@@ -6,10 +6,12 @@
 //  utána PIN-zár, nyitva a napló. Háttérbe kerüléskor automatikusan zárunk.
 //
 
+import SwiftData
 import SwiftUI
 
 struct JournalGateView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var modelContext
     @State private var vault = JournalVault.shared
     /// A beállítás-flow a recovery-kulcs nyugtázásáig tart — akkor is, ha a
     /// vault közben már „beállított" állapotú.
@@ -20,6 +22,7 @@ struct JournalGateView: View {
             if isSettingUp || !vault.isSetUp {
                 JournalSetupView(vault: vault) {
                     isSettingUp = false
+                    seedPhotoPromptReminder()
                 }
             } else if !vault.isUnlocked {
                 JournalLockView(vault: vault)
@@ -35,6 +38,28 @@ struct JournalGateView: View {
                 vault.lock()
             }
         }
+    }
+
+    /// Fotó-prompt emlékeztető (spec 4.5): a napló beállításakor kerül be,
+    /// egyszer — utána a normál emlékeztető-rendszerben él (átírható, kikapcsolható).
+    private func seedPhotoPromptReminder() {
+        let key = "journalPhotoPromptSeeded"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+
+        let reminder = Reminder()
+        reminder.title = "Fotó a napodról"
+        reminder.text = "Tölts fel egy fotót a napodról a naplóba! 📸"
+        reminder.symbolOrEmoji = "📸"
+        reminder.colorHex = 0x8A7DE0
+        reminder.source = .factory
+        reminder.wantsFeedback = false
+        var schedule = ReminderSchedule()
+        schedule.times = [ReminderSchedule.TimeOfDay(hour: 18, minute: 30)]
+        reminder.schedule = schedule
+        modelContext.insert(reminder)
+
+        Task { await ReminderScheduler.shared.resyncFromStore() }
     }
 }
 

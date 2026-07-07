@@ -8,8 +8,10 @@
 //  lépésében jönnek.
 //
 
+import PhotosUI
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct JournalHomeView: View {
     let vault: JournalVault
@@ -18,8 +20,12 @@ struct JournalHomeView: View {
     @Query(sort: \JournalEntry.timestamp, order: .reverse) private var entries: [JournalEntry]
     @Query(sort: \JournalAuditEvent.timestamp) private var auditEvents: [JournalAuditEvent]
     @Query private var themeSettings: [ThemeSettings]
+    @Query(sort: \JournalTemplate.name) private var templates: [JournalTemplate]
+    @Query private var photos: [JournalPhoto]
 
     @State private var isEditorPresented = false
+    @State private var fillTemplate: JournalTemplate?
+    @State private var isTemplatesEditorPresented = false
 
     private var theme: ThemeSettings? { themeSettings.first }
     private var accent: Color { theme?.accentColor ?? Theme.Accent.default }
@@ -68,8 +74,25 @@ struct JournalHomeView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        isEditorPresented = true
+                    Menu {
+                        Button {
+                            isEditorPresented = true
+                        } label: {
+                            Label("Írok szabadon", systemImage: "square.and.pencil")
+                        }
+                        ForEach(templates.filter(\.isActive)) { template in
+                            Button {
+                                fillTemplate = template
+                            } label: {
+                                Label(template.name, systemImage: "list.bullet.rectangle")
+                            }
+                        }
+                        Divider()
+                        Button {
+                            isTemplatesEditorPresented = true
+                        } label: {
+                            Label("Sablonok szerkesztése", systemImage: "slider.horizontal.3")
+                        }
                     } label: {
                         Image(systemName: "plus")
                     }
@@ -86,6 +109,15 @@ struct JournalHomeView: View {
             }
             .sheet(isPresented: $isEditorPresented) {
                 JournalEntryEditorView(vault: vault)
+            }
+            .sheet(item: $fillTemplate) { template in
+                JournalTemplateFillView(vault: vault, template: template)
+            }
+            .sheet(isPresented: $isTemplatesEditorPresented) {
+                JournalTemplatesEditorView()
+            }
+            .task {
+                JournalTemplateSeeder.seedFactoryPackIfNeeded(in: modelContext)
             }
         }
     }
@@ -163,17 +195,57 @@ struct JournalHomeView: View {
                         .foregroundStyle(Color.inkMuted)
                 }
             }
-            Text(payload?.text ?? "— nem olvasható —")
-                .font(.vandaBody())
-                .foregroundStyle(Color.ink)
-                .lineLimit(6)
+
+            ForEach(payload?.templateAnswers ?? [], id: \.question) { answer in
+                (Text(answer.question + "  ")
+                    .font(.vandaCaption(11))
+                    .foregroundStyle(Color.inkFaint)
+                 + Text(answer.answers.joined(separator: " · "))
+                    .font(.vandaBodyStrong(13))
+                    .foregroundStyle(Color.ink))
+            }
+
+            if let payload, !payload.text.isEmpty {
+                Text(payload.text)
+                    .font(.vandaBody())
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(6)
+            } else if payload == nil {
+                Text("— nem olvasható —")
+                    .font(.vandaBody())
+                    .foregroundStyle(Color.inkMuted)
+            }
+
+            let entryPhotos = decryptedPhotos(for: payload)
+            if !entryPhotos.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(entryPhotos, id: \.0) { _, image in
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 72, height: 72)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.iconContainer, style: .continuous))
+                    }
+                }
+                .padding(.top, 2)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .vandaCard(surface: cardSurface)
     }
+
+    private func decryptedPhotos(for payload: JournalPayload?) -> [(String, UIImage)] {
+        guard let payload else { return [] }
+        return payload.photoRefs.compactMap { ref in
+            guard let photo = photos.first(where: { $0.id.uuidString == ref }),
+                  let data = try? vault.openPhoto(photo),
+                  let image = UIImage(data: data) else { return nil }
+            return (ref, image)
+        }
+    }
 }
 
-// MARK: - Egyszerű bejegyzés-szerkesztő (v1: szabad szöveg + aksi%)
+// MARK: - Szabad szöveges bejegyzés-szerkesztő (+ fotók, aksi%)
 
 struct JournalEntryEditorView: View {
     let vault: JournalVault
@@ -185,6 +257,8 @@ struct JournalEntryEditorView: View {
 
     @State private var text = ""
     @State private var attachMood = false
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var photoDatas: [Data] = []
 
     private var todayMood: MoodEntry? {
         moodEntries.last { Calendar.current.isDateInToday($0.timestamp) }
@@ -203,6 +277,28 @@ struct JournalEntryEditorView: View {
                         .padding(10)
                         .frame(minHeight: 200)
                         .background(Color.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.cardSmall, style: .continuous))
+
+                    HStack(spacing: 10) {
+                        PhotosPicker(selection: $photoItems, maxSelectionCount: 3, matching: .images) {
+                            Label("Fotó (\(photoDatas.count)/3)", systemImage: "photo.on.rectangle.angled")
+                                .font(.vandaBodyStrong(13))
+                                .foregroundStyle(Color.ink)
+                                .padding(.vertical, Theme.Spacing.chipVertical)
+                                .padding(.horizontal, Theme.Spacing.chipHorizontal)
+                                .background(Color.surface, in: Capsule())
+                        }
+
+                        ForEach(photoDatas.indices, id: \.self) { index in
+                            if let image = UIImage(data: photoDatas[index]) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 44, height: 44)
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.iconContainer, style: .continuous))
+                            }
+                        }
+                        Spacer()
+                    }
 
                     if let mood = todayMood {
                         Toggle(isOn: $attachMood) {
@@ -227,10 +323,24 @@ struct JournalEntryEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Mentés") { save() }
-                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && photoDatas.isEmpty)
                 }
             }
+            .onChange(of: photoItems) { _, newItems in
+                Task { await loadPhotos(newItems) }
+            }
         }
+    }
+
+    private func loadPhotos(_ items: [PhotosPickerItem]) async {
+        var loaded: [Data] = []
+        for item in items.prefix(3) {
+            if let data = try? await item.loadTransferable(type: Data.self),
+               let downscaled = ImageDownscaler.jpegData(from: data, maxDimension: 1600) {
+                loaded.append(downscaled)
+            }
+        }
+        photoDatas = loaded
     }
 
     private func save() {
@@ -238,6 +348,11 @@ struct JournalEntryEditorView: View {
         payload.text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if attachMood, let mood = todayMood {
             payload.moodPercent = mood.batteryPercent
+        }
+        for data in photoDatas {
+            guard let photo = try? vault.sealPhoto(data) else { continue }
+            modelContext.insert(photo)
+            payload.photoRefs.append(photo.id.uuidString)
         }
         guard let entry = try? vault.seal(payload, previousEntry: entries.last) else { return }
         modelContext.insert(entry)

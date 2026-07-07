@@ -54,6 +54,19 @@ nonisolated struct TemplateQuestion: Codable {
     var kind: Kind = .chips
     /// Chipeknél a választék; emoji-skálánál az emojik; skálánál a végpont-feliratok
     var options: [String] = []
+    /// Chipeknél: több válasz is jelölhető-e („többet is")
+    var allowsMultiple: Bool = false
+}
+
+/// Naplóhoz csatolt fotó — KIZÁRÓLAG titkosítva (a kulcs a napló tartalomkulcsa).
+/// CloudKiten titkosított blobként szinkronizálódik Vanda eszközei közt.
+@Model
+final class JournalPhoto {
+    var id: UUID = UUID()
+    @Attribute(.externalStorage) var encryptedData: Data? = nil
+    var createdAt: Date = Date()
+
+    init() {}
 }
 
 @Model
