@@ -46,6 +46,10 @@ Az unatkozó fal gyári kezdőcsomagja akkor seedelődik, amikor a katalógus ü
 
 A gyári emlékeztetők a spec szerint „ki-be kapcsolhatók, szövegük átírható" — a törlést csak a saját emlékeztetőkre engedjük, így a gyári csomag nem veszhet el véletlenül (kikapcsolva ugyanazt adja). Az ütemezés-szinkron stratégiája: minden változás után teljes újraütemezés (az összes saját függő notification törlése + aktívak újrafelvétele) — egyszerűbb és robusztusabb, mint a differenciális követés.
 
+## 2026-07-07 — Napi progress kártya címkéje: „A napod", nem „Mai töltöttség"
+
+A design-tokens eredetileg „Mai töltöttség"-nek hívta a Ma képernyő progress-kártyáját, de ez összekeverhető Vanda aksijával (hangulatbarométer, 2. fázis). Döntés (Attila): a kártya címkéje **„A napod"**, az üzenetek is a napról szólnak („A napod szép ívben töltődik 🐨") — a spec 4.6 szófordulatát követve. A rímelés a barométerrel szándékos marad, de a két fogalom feliratban nem keveredik. A design-tokens 5. fejezete frissítve.
+
 ## 2026-07-07 — Tartomány-tokenek: egy konkrét érték
 
 A design-tokens tartományokat ad (kártya radius 22–26, gap 13–16 stb.); a `Theme` egy-egy konkrét középértéket rögzít (24, 14, …), hogy a UI egységes legyen. Képernyőnkénti eltérés csak indokolt esetben, a tokenen keresztül.

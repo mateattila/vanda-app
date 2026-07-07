@@ -85,6 +85,15 @@ final class Reminder {
         get { ContentSource(rawValue: sourceRaw) ?? .custom }
         set { sourceRaw = newValue.rawValue }
     }
+
+    /// Hány pipálható előfordulása van az adott napon (a napi progress falhoz).
+    /// Csak aktív, visszajelzést kérő emlékeztető számít bele.
+    func occurrences(on date: Date, calendar: Calendar = .current) -> Int {
+        guard isActive, wantsFeedback else { return 0 }
+        let weekday = calendar.component(.weekday, from: date)
+        guard schedule.isDaily || schedule.weekdays.contains(weekday) else { return 0 }
+        return schedule.times.count
+    }
 }
 
 enum ReminderLogStatus: String, Codable {

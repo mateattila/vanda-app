@@ -91,7 +91,7 @@ SwiftUI: mindkettő behúzandó custom fontként (`Quicksand`, `Nunito`) — a r
 
 ## 5. Komponens-jegyzék (képernyőnként)
 
-- **Ma:** üdvözlés + dátum · **Panik gomb jobb fent** (kiemelt, lüktető) · „Mai töltöttség" aksi-kártya (nagy %, kirajzolt elem-akku csík) · barométer mini · „Unatkozol?" accent-kártya · alsó tab bar (Ma · Ébresztő · Napló · Unatkozom) · fogaskerék → Beállítások.
+- **Ma:** üdvözlés + dátum · **Panik gomb jobb fent** (kiemelt, lüktető) · „A napod" napi-progress kártya (nagy %, kirajzolt elem-akku csík; 2026-07-07-i döntés: a címke a napról szól, nem Vanda aksijáról — az aksi a barométeré) · barométer mini · „Unatkozol?" accent-kártya · alsó tab bar (Ma · Ébresztő · Napló · Unatkozom) · fogaskerék → Beállítások.
 - **Hangulatbarométer:** függőleges aksi-mérő (elem forma, terminál a tetején) zöld/narancs/piros zóna-chipekkel + „egy kis töltő" ajánló kártya.
 - **Unatkozom:** kiemelt accent-kártya + 2×2 kártyafal · alul `🎲 Pörgess egyet!` ink-gomb.
 - **Napló-belépés:** külön **sötét** környezet (`#48416A→#322C4C`), PIN-pöttyök + numpad + Face ID. Adatvédelmi jelzés: ez privát.
