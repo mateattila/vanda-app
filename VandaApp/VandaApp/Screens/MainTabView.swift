@@ -10,7 +10,12 @@ import SwiftUI
 import SwiftData
 
 struct MainTabView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var themeSettings: [ThemeSettings]
+    @Query private var alarmProfiles: [AlarmProfile]
+
+    /// Élő, megoldatlan lánc-ébresztés profilja — ilyenkor a feladvány-képernyő ül mindenen.
+    @State private var puzzleProfile: AlarmProfile?
 
     private var accent: Color {
         themeSettings.first?.accentColor ?? Theme.Accent.default
@@ -22,7 +27,7 @@ struct MainTabView: View {
                 TodayView()
             }
             Tab("Ébresztő", systemImage: "alarm.fill") {
-                AlarmPlaceholderView()
+                AlarmListView()
             }
             Tab("Napló", systemImage: "book.closed.fill") {
                 JournalPlaceholderView()
@@ -32,6 +37,25 @@ struct MainTabView: View {
             }
         }
         .tint(accent)
+        .fullScreenCover(item: $puzzleProfile) { profile in
+            WakePuzzleView(profile: profile) {
+                let solved = profile
+                puzzleProfile = nil
+                Task { await AlarmScheduler.shared.markSolvedAndReschedule(profile: solved) }
+            }
+        }
+        .onAppear(perform: checkForActiveAlarmChain)
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                checkForActiveAlarmChain()
+                Task { await AlarmScheduler.shared.resync(profiles: alarmProfiles) }
+            }
+        }
+    }
+
+    private func checkForActiveAlarmChain() {
+        guard puzzleProfile == nil else { return }
+        puzzleProfile = AlarmScheduler.shared.profileNeedingPuzzle(from: alarmProfiles)
     }
 }
 

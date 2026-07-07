@@ -38,16 +38,6 @@ private struct PlaceholderScreen: View {
     }
 }
 
-struct AlarmPlaceholderView: View {
-    var body: some View {
-        PlaceholderScreen(
-            emoji: "⏰",
-            title: "Ébresztő",
-            message: "A kedvenc zenéddel ébresztünk majd — az 1. fázis nagy dobása. 🎸"
-        )
-    }
-}
-
 struct JournalPlaceholderView: View {
     var body: some View {
         PlaceholderScreen(

@@ -50,6 +50,18 @@ A gyári emlékeztetők a spec szerint „ki-be kapcsolhatók, szövegük átír
 
 A design-tokens eredetileg „Mai töltöttség"-nek hívta a Ma képernyő progress-kártyáját, de ez összekeverhető Vanda aksijával (hangulatbarométer, 2. fázis). Döntés (Attila): a kártya címkéje **„A napod"**, az üzenetek is a napról szólnak („A napod szép ívben töltődik 🐨") — a spec 4.6 szófordulatát követve. A rímelés a barométerrel szándékos marad, de a két fogalom feliratban nem keveredik. A design-tokens 5. fejezete frissítve.
 
+## 2026-07-07 — Lánc-ébresztő: fix időpontú alarmok + app-oldali újraütemezés
+
+A lánc tagjai nem ismétlődő AlarmKit-alarmok, hanem **fix időpontúak a következő előfordulásra** (N darab, M percenként), és az app minden indulás/előtérbe kerülés/szerkesztés/feladvány-megoldás után újraütemez. Indoklás: ismétlődő alarmoknál a „mai hátralévő tagok törlése a feladvány után" a jövő heti alarmokat is vinné; a fix+újraütemezés modell egyszerű és kiszámítható. **Ismert korlát:** egy megszólalás után a következő előfordulás beütemezéséhez app-futás kell — Vanda napi szinten használja az appot (emlékeztetők, fal), és minden előtérbe kerülés újraszinkronizál; eszközön tesztelve iterálunk.
+
+## 2026-07-07 — Feladvány-kapu: időablak-alapú felismerés, nem AppIntents (v1)
+
+Az élő lánc felismerése app-megnyitáskor időablak alapján történik (t0 … utolsó tag + 10 perc ráhagyás, eszköz-lokális UserDefaults-állapotból). A megoldottság az **aktuális előforduláshoz (t0)** kötődik, nem a naphoz — az első eszközös teszt kibuktatta, hogy a naphoz kötött változat ugyanaznap minden további ébresztésnél elnyelte a feladványt. Lánc-ébresztős profilnál a rendszer-alarm „Leállítom" gombjához `stopIntent` (LiveActivityIntent, `openAppWhenRun`) kötődik: a leállítás egyben az appba dob, ahol a kapu azonnal felteszi a feladványt — sima ébresztőnél a stop csak leállít (eszközös teszt visszajelzése alapján, 2026-07-07). A countdown Live Activity (widget extension, spec 4.1) továbbra is későbbi kör — a widget-target hozzáadása Xcode-ban esedékes. Az ébresztés-állapot (ütemezett ID-k, megoldás napja) szándékosan NEM CloudKit-szinkronizált: az alarm azon az eszközön él, ahol beütemezték.
+
+## 2026-07-07 — Zenetár: formátum-konverzió elhalasztva
+
+Az importált hangfájl változatlanul másolódik a Library/Sounds alá (mp3/m4a/wav közvetlenül működik AlarmKit-tel); a spec szerinti automatikus konverziót (bármilyen formátum → támogatott) akkor építjük meg, ha eszközön kiderül, hogy kell. A felvétel eleve AAC/m4a.
+
 ## 2026-07-07 — Tartomány-tokenek: egy konkrét érték
 
 A design-tokens tartományokat ad (kártya radius 22–26, gap 13–16 stb.); a `Theme` egy-egy konkrét középértéket rögzít (24, 14, …), hogy a UI egységes legyen. Képernyőnkénti eltérés csak indokolt esetben, a tokenen keresztül.

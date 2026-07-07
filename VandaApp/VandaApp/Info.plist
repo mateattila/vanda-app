@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>Az ébresztőid megszólaltatásához kell — enélkül nem tud csörögni az app.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Hangfelvétel rögzítéséhez kell, ha saját hangot szeretnél ébresztőnek.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Quicksand-Medium.ttf</string>
