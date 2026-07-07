@@ -9,7 +9,7 @@ Személyes iOS-app Vandának (iPhone + iPad). Swift + SwiftUI, SwiftData + Cloud
 
 ## Munkamódszer
 
-- **Fázisonként haladunk** a spec 7. fejezete szerint. **Jelenlegi fázis: 0 (Alapozás).** Ne implementálj későbbi fázisokhoz tartozó funkciót, még „ha már itt vagyunk" alapon sem.
+- **Fázisonként haladunk** a spec 7. fejezete szerint. **Jelenlegi fázis: 1 (MVP).** (A 0. fázis kód-oldala kész; a valódi eszközös CloudKit-teszt még függőben.) Ne implementálj későbbi fázisokhoz tartozó funkciót, még „ha már itt vagyunk" alapon sem.
 - Egy fázison belül **kis, önállóan buildelhető lépésekben** dolgozz. Minden lépés végén az alábbi buildnek hibátlanul le kell futnia:
 
   ```sh

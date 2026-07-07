@@ -106,7 +106,7 @@ struct TodayView: View {
                 Text("Unatkozol?")
                     .font(.vandaDisplay(20))
                     .foregroundStyle(.white)
-                Text("A kártyafal az 1. fázisban nyílik 👀")
+                Text("Ugorj az Unatkozom fülre egy ötletért 👀")
                     .font(.vandaBody(13))
                     .foregroundStyle(.white.opacity(0.85))
             }

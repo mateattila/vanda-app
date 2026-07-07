@@ -34,6 +34,14 @@ A SwiftUI `navigationTitle` fontja képernyőnként nem állítható; hogy a nav
 
 Az iOS 26.2 szimulátor-runtime ezen a gépen minden emojit ⍰-ként renderel — a Safariban is, tehát nem az app hibája (a forrásfájlok UTF-8-ban épek, a runtime-ban ott az AppleColorEmoji). Valódi eszközön nem jelentkezik; kódkerülőt nem építünk rá.
 
+## 2026-07-07 — Activity: emoji-mező a spec adatmodellje fölött
+
+A spec 3. fejezete az `Activity`-nél csak címet + címkéket ír, de a design-referencia (03-screen) kártyáin emoji van — a modell `emoji` mezőt kapott (alapérték `✨`, CloudKit-kompatibilis). A spec adatmodellje „magas szint", ez kiegészítés, nem eltérés.
+
+## 2026-07-07 — Gyári csomag seedelése: üres katalógusnál, kliens-oldalon
+
+Az unatkozó fal gyári kezdőcsomagja akkor seedelődik, amikor a katalógus üres (első fül-megnyitás). CloudKit-szinkronnal elméletben előfordulhat dupla seed (két friss eszköz egyszerre, a szinkron beérkezte előtt) — `@Attribute(.unique)` CloudKit mellett nem használható, ezért ezt elfogadjuk; családi appnál a kockázat minimális, duplikátum kézzel törölhető.
+
 ## 2026-07-07 — Tartomány-tokenek: egy konkrét érték
 
 A design-tokens tartományokat ad (kártya radius 22–26, gap 13–16 stb.); a `Theme` egy-egy konkrét középértéket rögzít (24, 14, …), hogy a UI egységes legyen. Képernyőnkénti eltérés csak indokolt esetben, a tokenen keresztül.

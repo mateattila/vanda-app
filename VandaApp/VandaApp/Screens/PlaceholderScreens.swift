@@ -58,17 +58,7 @@ struct JournalPlaceholderView: View {
     }
 }
 
-struct BoredomPlaceholderView: View {
-    var body: some View {
-        PlaceholderScreen(
-            emoji: "🎲",
-            title: "Unatkozom",
-            message: "A kártyafal és a „Pörgess egyet!” az 1. fázisban érkezik."
-        )
-    }
-}
-
 #Preview {
-    BoredomPlaceholderView()
+    JournalPlaceholderView()
         .modelContainer(VandaStore.makeContainer())
 }

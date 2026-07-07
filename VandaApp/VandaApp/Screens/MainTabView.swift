@@ -28,7 +28,7 @@ struct MainTabView: View {
                 JournalPlaceholderView()
             }
             Tab("Unatkozom", systemImage: "dice.fill") {
-                BoredomPlaceholderView()
+                BoredomView()
             }
         }
         .tint(accent)
