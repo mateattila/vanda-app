@@ -1,5 +1,9 @@
 # Döntési napló
 
+## 2026-07-07 — 4. fázis: backend Cloudflare Workersen, párosítás 6 jegyű kóddal
+
+A minimál backend (spec 5. fejezet) Cloudflare Workers-re épül (TypeScript + Hono, D1 + R2), nem Vaporra: zéró üzemeltetés, ingyenes tier, mindig ébren — egy panik-funkciónál a „szerver életben tartása" ne legyen családi felelősség. Az APNs-t közvetlen HTTP/2 + p8 JWT hívással érjük el; az első backend-lépés tracer bullet, ami ezt end-to-end igazolja. Párosítás 6 jegyű, 10 perces kóddal (QR nélkül — kevesebb mozgó alkatrész). A panik-push time-sensitive besorolású; a critical alert (külön Apple-jóváhagyás) nem v1. A push capability és a p8 kulcs Attila kézi lépése, ahogy a CloudKit-nél. Részletes design: `docs/superpowers/specs/2026-07-07-phase4-panic-backend-design.md`.
+
 ## 2026-07-07 — Barométer: MoodSettings modell + véletlen rákérdezés 7 napra előre
 
 A zónahatárok, a rákérdezés-idősáv, a kérdés-mélység és a megosztás-kapcsolók egy CloudKit-szinkronizált `MoodSettings` modellben élnek (a spec adatmodell-listáján felül — a „zónahatárok beállításban módosíthatók" követelmény igényli). A napi véletlen időzítésű aksi-rákérdezés úgy készül, hogy a következő 7 nap kérdezéseit fix időpontú lokális notificationökre sorsoljuk, és minden app-indulás újrasorsolja — így nem kell háttér-futás, és a „sosem kiszámítható időben jön" élmény megmarad. A kérdésekre adott válaszok a MoodEntry-ben maradnak (CloudKit, Vanda eszközei), a megosztás-kapcsolók a 4. fázisig csak rögzítik a szándékot.
