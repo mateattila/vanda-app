@@ -23,6 +23,8 @@ enum VandaStore {
         JournalPhoto.self,
         DailyTask.self,
         JournalTemplate.self,
+        PanicContact.self,
+        CalmItem.self,
         ThemeSettings.self,
     ])
 
