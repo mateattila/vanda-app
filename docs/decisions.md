@@ -42,6 +42,10 @@ A spec 3. fejezete az `Activity`-nél csak címet + címkéket ír, de a design-
 
 Az unatkozó fal gyári kezdőcsomagja akkor seedelődik, amikor a katalógus üres (első fül-megnyitás). CloudKit-szinkronnal elméletben előfordulhat dupla seed (két friss eszköz egyszerre, a szinkron beérkezte előtt) — `@Attribute(.unique)` CloudKit mellett nem használható, ezért ezt elfogadjuk; családi appnál a kockázat minimális, duplikátum kézzel törölhető.
 
+## 2026-07-07 — Emlékeztetők: gyári elem nem törölhető, csak kikapcsolható
+
+A gyári emlékeztetők a spec szerint „ki-be kapcsolhatók, szövegük átírható" — a törlést csak a saját emlékeztetőkre engedjük, így a gyári csomag nem veszhet el véletlenül (kikapcsolva ugyanazt adja). Az ütemezés-szinkron stratégiája: minden változás után teljes újraütemezés (az összes saját függő notification törlése + aktívak újrafelvétele) — egyszerűbb és robusztusabb, mint a differenciális követés.
+
 ## 2026-07-07 — Tartomány-tokenek: egy konkrét érték
 
 A design-tokens tartományokat ad (kártya radius 22–26, gap 13–16 stb.); a `Theme` egy-egy konkrét középértéket rögzít (24, 14, …), hogy a UI egységes legyen. Képernyőnkénti eltérés csak indokolt esetben, a tokenen keresztül.

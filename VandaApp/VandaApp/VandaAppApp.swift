@@ -24,6 +24,7 @@ struct VandaAppApp: App {
         #endif
 
         configureNavigationBarTypography()
+        ReminderScheduler.shared.configure(container: modelContainer)
     }
 
     /// A navigation bar címei is a Soft Dusk tipográfiát beszéljék (Quicksand),
@@ -44,6 +45,11 @@ struct VandaAppApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .task {
+                    // Induláskor újraütemezzük az aktív emlékeztetőket — így egy
+                    // másik eszközről (CloudKit) érkezett módosítás is érvénybe lép.
+                    await ReminderScheduler.shared.resyncFromStore()
+                }
         }
         .modelContainer(modelContainer)
     }

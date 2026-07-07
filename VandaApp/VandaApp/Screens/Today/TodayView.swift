@@ -28,6 +28,7 @@ struct TodayView: View {
                     VStack(alignment: .leading, spacing: Theme.Spacing.cardGap) {
                         header
                         chargeCard
+                        remindersCard
                         boredomCard
                     }
                     .padding(.horizontal, Theme.Spacing.screenMargin)
@@ -98,6 +99,37 @@ struct TodayView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .vandaCard(surface: cardSurface)
+    }
+
+    private var remindersCard: some View {
+        NavigationLink {
+            RemindersListView()
+        } label: {
+            HStack(spacing: Theme.Spacing.cardPadding) {
+                Text("🔔")
+                    .font(.system(size: 20))
+                    .frame(width: 40, height: 40)
+                    .background(
+                        Color.surfaceTint,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.iconContainer, style: .continuous)
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Emlékeztetők")
+                        .font(.vandaBodyStrong())
+                        .foregroundStyle(Color.ink)
+                    Text("Kedves noszogatások — a te szavaiddal")
+                        .font(.vandaCaption())
+                        .foregroundStyle(Color.inkMuted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Color.inkFaint)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .vandaCard(surface: cardSurface)
+        }
+        .buttonStyle(.plain)
     }
 
     private var boredomCard: some View {

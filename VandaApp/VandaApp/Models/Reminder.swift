@@ -23,6 +23,43 @@ nonisolated struct ReminderSchedule: Codable {
     /// Heti ismétlésnél a napok (`Calendar` konvenció: 1 = vasárnap … 7 = szombat)
     var weekdays: [Int] = []
     var times: [TimeOfDay] = [TimeOfDay()]
+
+    var isDaily: Bool {
+        frequency == .daily || weekdays.isEmpty || weekdays.count == 7
+    }
+
+    /// Rövid magyar összefoglaló a listához: „Naponta · 8:00" / „H · Sze · P · 7:30"
+    var summary: String {
+        let dayPart: String
+        if isDaily {
+            dayPart = "Naponta"
+        } else {
+            dayPart = weekdays
+                .sorted { hungarianOrder($0) < hungarianOrder($1) }
+                .compactMap { Self.dayAbbreviations[$0] }
+                .joined(separator: " · ")
+        }
+        let timePart = times
+            .sorted { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
+            .map(\.display)
+            .joined(separator: ", ")
+        return timePart.isEmpty ? dayPart : "\(dayPart) · \(timePart)"
+    }
+
+    /// Hétfő-kezdő rendezés a magyar megjelenítéshez
+    private func hungarianOrder(_ calendarWeekday: Int) -> Int {
+        calendarWeekday == 1 ? 8 : calendarWeekday
+    }
+
+    static let dayAbbreviations: [Int: String] = [
+        2: "H", 3: "K", 4: "Sze", 5: "Cs", 6: "P", 7: "Szo", 1: "V",
+    ]
+}
+
+extension ReminderSchedule.TimeOfDay {
+    var display: String {
+        String(format: "%d:%02d", hour, minute)
+    }
 }
 
 @Model
