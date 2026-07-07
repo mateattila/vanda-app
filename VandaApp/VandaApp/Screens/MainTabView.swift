@@ -32,7 +32,7 @@ struct MainTabView: View {
                 AlarmListView()
             }
             Tab("Napló", systemImage: "book.closed.fill") {
-                JournalPlaceholderView()
+                JournalGateView()
             }
             Tab("Unatkozom", systemImage: "dice.fill") {
                 BoredomView()

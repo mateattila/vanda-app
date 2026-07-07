@@ -32,8 +32,9 @@ final class JournalAuditEvent {
     var id: UUID = UUID()
     var timestamp: Date = Date()
     var kindRaw: String = JournalAuditKind.recoveryUnlock.rawValue
-    /// Visszavonhatatlan: az app soha nem töröl ilyen eseményt; a kikényszerítés
-    /// (és a Vandának szóló banner) a 3. fázis titkosítási rétegének része.
+    /// Vanda mikor nyugtázta a bannert — az esemény maga VISSZAVONHATATLAN,
+    /// az app soha nem törli, csak a banner tűnik el.
+    var acknowledgedAt: Date? = nil
 
     init() {}
 

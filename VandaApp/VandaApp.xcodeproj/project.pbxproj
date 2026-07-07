@@ -6,8 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		EB9ADC142FFD6A32006B4D10 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EBC2D2FE2FFC27DA00A60AB5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EBC2D3052FFC27DA00A60AB5;
+			remoteInfo = VandaApp;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		EB9ADB8D2FFD1717006B4D10 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
+		EB9ADC102FFD6A32006B4D10 /* VandaAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VandaAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EBC2D3062FFC27DA00A60AB5 /* VandaApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VandaApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -22,6 +33,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		EB9ADC112FFD6A32006B4D10 /* VandaAppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = VandaAppTests;
+			sourceTree = "<group>";
+		};
 		EBC2D3082FFC27DA00A60AB5 /* VandaApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -33,6 +49,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		EB9ADC0D2FFD6A32006B4D10 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EBC2D3032FFC27DA00A60AB5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -55,6 +78,7 @@
 			isa = PBXGroup;
 			children = (
 				EBC2D3082FFC27DA00A60AB5 /* VandaApp */,
+				EB9ADC112FFD6A32006B4D10 /* VandaAppTests */,
 				EB9ADB8C2FFD1717006B4D10 /* Frameworks */,
 				EBC2D3072FFC27DA00A60AB5 /* Products */,
 			);
@@ -64,6 +88,7 @@
 			isa = PBXGroup;
 			children = (
 				EBC2D3062FFC27DA00A60AB5 /* VandaApp.app */,
+				EB9ADC102FFD6A32006B4D10 /* VandaAppTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -71,6 +96,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		EB9ADC0F2FFD6A32006B4D10 /* VandaAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EB9ADC162FFD6A32006B4D10 /* Build configuration list for PBXNativeTarget "VandaAppTests" */;
+			buildPhases = (
+				EB9ADC0C2FFD6A32006B4D10 /* Sources */,
+				EB9ADC0D2FFD6A32006B4D10 /* Frameworks */,
+				EB9ADC0E2FFD6A32006B4D10 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EB9ADC152FFD6A32006B4D10 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				EB9ADC112FFD6A32006B4D10 /* VandaAppTests */,
+			);
+			name = VandaAppTests;
+			packageProductDependencies = (
+			);
+			productName = VandaAppTests;
+			productReference = EB9ADC102FFD6A32006B4D10 /* VandaAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		EBC2D3052FFC27DA00A60AB5 /* VandaApp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = EBC2D3112FFC27DB00A60AB5 /* Build configuration list for PBXNativeTarget "VandaApp" */;
@@ -103,6 +151,10 @@
 				LastSwiftUpdateCheck = 2630;
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
+					EB9ADC0F2FFD6A32006B4D10 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = EBC2D3052FFC27DA00A60AB5;
+					};
 					EBC2D3052FFC27DA00A60AB5 = {
 						CreatedOnToolsVersion = 26.3;
 					};
@@ -123,11 +175,19 @@
 			projectRoot = "";
 			targets = (
 				EBC2D3052FFC27DA00A60AB5 /* VandaApp */,
+				EB9ADC0F2FFD6A32006B4D10 /* VandaAppTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		EB9ADC0E2FFD6A32006B4D10 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EBC2D3042FFC27DA00A60AB5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -138,6 +198,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		EB9ADC0C2FFD6A32006B4D10 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EBC2D3022FFC27DA00A60AB5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -147,7 +214,59 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		EB9ADC152FFD6A32006B4D10 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EBC2D3052FFC27DA00A60AB5 /* VandaApp */;
+			targetProxy = EB9ADC142FFD6A32006B4D10 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		EB9ADC172FFD6A32006B4D10 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5JAHU6A9YM;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = hu.attis.VandaAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VandaApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/VandaApp";
+			};
+			name = Debug;
+		};
+		EB9ADC182FFD6A32006B4D10 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5JAHU6A9YM;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = hu.attis.VandaAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VandaApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/VandaApp";
+			};
+			name = Release;
+		};
 		EBC2D30F2FFC27DB00A60AB5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -338,6 +457,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		EB9ADC162FFD6A32006B4D10 /* Build configuration list for PBXNativeTarget "VandaAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EB9ADC172FFD6A32006B4D10 /* Debug */,
+				EB9ADC182FFD6A32006B4D10 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		EBC2D3012FFC27DA00A60AB5 /* Build configuration list for PBXProject "VandaApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
