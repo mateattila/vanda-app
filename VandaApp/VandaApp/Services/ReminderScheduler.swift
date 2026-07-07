@@ -31,13 +31,19 @@ final class ReminderScheduler: NSObject {
             title: "✓ Kész",
             options: []
         )
-        let category = UNNotificationCategory(
+        let reminderCategory = UNNotificationCategory(
             identifier: Self.categoryID,
             actions: [done],
             intentIdentifiers: [],
             options: []
         )
-        center.setNotificationCategories([category])
+        let moodCategory = UNNotificationCategory(
+            identifier: MoodPromptScheduler.categoryID,
+            actions: [],
+            intentIdentifiers: [],
+            options: []
+        )
+        center.setNotificationCategories([reminderCategory, moodCategory])
     }
 
     /// Engedélykérés, ha még nem dőlt el; a válasz: küldhetünk-e értesítést.
@@ -132,9 +138,19 @@ extension ReminderScheduler: UNUserNotificationCenterDelegate {
         let actionID = response.actionIdentifier
         let userInfo = response.notification.request.content.userInfo
         let reminderIDString = userInfo["reminderID"] as? String
+        let categoryID = response.notification.request.content.categoryIdentifier
 
         Task { @MainActor in
             defer { completionHandler() }
+
+            // Aksi-rákérdezésre koppintás: az app megnyílik, a Ma képernyő
+            // kapuja pedig felteszi a csúszkát.
+            if categoryID == MoodPromptScheduler.categoryID,
+               actionID == UNNotificationDefaultActionIdentifier {
+                UserDefaults.standard.set(true, forKey: MoodPromptScheduler.pendingFlagKey)
+                return
+            }
+
             guard actionID == Self.doneActionID,
                   let reminderIDString,
                   let reminderID = UUID(uuidString: reminderIDString),

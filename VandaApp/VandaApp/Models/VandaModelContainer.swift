@@ -15,6 +15,7 @@ enum VandaStore {
         Reminder.self,
         ReminderLog.self,
         MoodEntry.self,
+        MoodSettings.self,
         Question.self,
         Activity.self,
         JournalEntry.self,

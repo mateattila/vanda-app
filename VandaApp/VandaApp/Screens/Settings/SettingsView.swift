@@ -33,6 +33,17 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
 
+                    NavigationLink {
+                        MoodSettingsView()
+                    } label: {
+                        settingsRow(
+                            symbol: "battery.75percent",
+                            title: "Barométer",
+                            subtitle: "Zónahatárok, napi rákérdezés, kérdések"
+                        )
+                    }
+                    .buttonStyle(.plain)
+
                     settingsRow(
                         symbol: "person.2.fill",
                         title: "Megosztás a szülőkkel",

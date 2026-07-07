@@ -1,5 +1,9 @@
 # Döntési napló
 
+## 2026-07-07 — Barométer: MoodSettings modell + véletlen rákérdezés 7 napra előre
+
+A zónahatárok, a rákérdezés-idősáv, a kérdés-mélység és a megosztás-kapcsolók egy CloudKit-szinkronizált `MoodSettings` modellben élnek (a spec adatmodell-listáján felül — a „zónahatárok beállításban módosíthatók" követelmény igényli). A napi véletlen időzítésű aksi-rákérdezés úgy készül, hogy a következő 7 nap kérdezéseit fix időpontú lokális notificationökre sorsoljuk, és minden app-indulás újrasorsolja — így nem kell háttér-futás, és a „sosem kiszámítható időben jön" élmény megmarad. A kérdésekre adott válaszok a MoodEntry-ben maradnak (CloudKit, Vanda eszközei), a megosztás-kapcsolók a 4. fázisig csak rögzítik a szándékot.
+
 Jelentős fejlesztési döntések, dátummal és indoklással. (Elv: ami a specből/design-tokensből nem következik egyértelműen, az ide kerül.)
 
 ## 2026-07-07 — Fontok: statikus TTF-példányok, nem variable fontok

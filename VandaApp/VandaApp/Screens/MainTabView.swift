@@ -16,6 +16,8 @@ struct MainTabView: View {
 
     /// Élő, megoldatlan lánc-ébresztés profilja — ilyenkor a feladvány-képernyő ül mindenen.
     @State private var puzzleProfile: AlarmProfile?
+    /// Aksi-rákérdezés notificationjére koppintva nyílik.
+    @State private var isMoodPromptPresented = false
 
     private var accent: Color {
         themeSettings.first?.accentColor ?? Theme.Accent.default
@@ -44,18 +46,28 @@ struct MainTabView: View {
                 Task { await AlarmScheduler.shared.markSolvedAndReschedule(profile: solved) }
             }
         }
-        .onAppear(perform: checkForActiveAlarmChain)
+        .sheet(isPresented: $isMoodPromptPresented) {
+            MoodCheckView()
+        }
+        .onAppear(perform: checkGates)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                checkForActiveAlarmChain()
+                checkGates()
                 Task { await AlarmScheduler.shared.resync(profiles: alarmProfiles) }
             }
         }
     }
 
-    private func checkForActiveAlarmChain() {
+    private func checkGates() {
         guard puzzleProfile == nil else { return }
         puzzleProfile = AlarmScheduler.shared.profileNeedingPuzzle(from: alarmProfiles)
+
+        // Aksi-rákérdezés csak akkor, ha nem áll feladvány-kapu az útban.
+        if puzzleProfile == nil,
+           UserDefaults.standard.bool(forKey: MoodPromptScheduler.pendingFlagKey) {
+            UserDefaults.standard.set(false, forKey: MoodPromptScheduler.pendingFlagKey)
+            isMoodPromptPresented = true
+        }
     }
 }
 

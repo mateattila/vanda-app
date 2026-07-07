@@ -18,8 +18,10 @@ struct TodayView: View {
     @Query(sort: \Reminder.createdAt) private var reminders: [Reminder]
     @Query(sort: \DailyTask.date) private var allTasks: [DailyTask]
     @Query private var allLogs: [ReminderLog]
+    @Query(sort: \MoodEntry.timestamp) private var moodEntries: [MoodEntry]
 
     @State private var isPanicPresented = false
+    @State private var isMoodCheckPresented = false
     @State private var newTaskTitle = ""
 
     /// A nagy szám skálázásához nem-szöveg méret is tartozik (akku-csík) —
@@ -39,6 +41,7 @@ struct TodayView: View {
                     VStack(alignment: .leading, spacing: Theme.Spacing.cardGap) {
                         header
                         chargeCard
+                        barometerCard
                         wallCard
                         remindersCard
                         boredomCard
@@ -50,6 +53,9 @@ struct TodayView: View {
             .toolbar(.hidden, for: .navigationBar)
             .fullScreenCover(isPresented: $isPanicPresented) {
                 PanicPlaceholderView()
+            }
+            .sheet(isPresented: $isMoodCheckPresented) {
+                MoodCheckView()
             }
         }
     }
@@ -200,6 +206,60 @@ struct TodayView: View {
                 .fill(Color.inkFaint)
                 .frame(width: 3.5, height: batteryBarHeight * 0.4)
         }
+    }
+
+    // MARK: - Barométer mini
+
+    private var todayMood: MoodEntry? {
+        moodEntries.last { Calendar.current.isDateInToday($0.timestamp) }
+    }
+
+    private var barometerCard: some View {
+        HStack(spacing: Theme.Spacing.cardPadding) {
+            Button {
+                isMoodCheckPresented = true
+            } label: {
+                HStack(spacing: Theme.Spacing.cardPadding) {
+                    Text("🔋")
+                        .font(.system(size: 20))
+                        .frame(width: 40, height: 40)
+                        .background(
+                            Color.surfaceTint,
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.iconContainer, style: .continuous)
+                        )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Hangulatbarométer")
+                            .font(.vandaBodyStrong())
+                            .foregroundStyle(Color.ink)
+                        if let mood = todayMood {
+                            Text("\(mood.zone.name) zóna · \(mood.batteryPercent)%")
+                                .font(.vandaCaption())
+                                .foregroundStyle(mood.zone.strongColor)
+                        } else {
+                            Text("Hány százalékos az aksid?")
+                                .font(.vandaCaption())
+                                .foregroundStyle(Color.inkMuted)
+                        }
+                    }
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                MoodTrendView()
+            } label: {
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.inkMuted)
+                    .frame(width: 32, height: 32)
+                    .background(Color.surfaceTint, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Aksi-trend")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .vandaCard(surface: cardSurface)
     }
 
     // MARK: - Mai nap fal

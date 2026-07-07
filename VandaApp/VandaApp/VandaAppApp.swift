@@ -49,6 +49,9 @@ struct VandaAppApp: App {
                     // Induláskor újraütemezzük az aktív emlékeztetőket — így egy
                     // másik eszközről (CloudKit) érkezett módosítás is érvénybe lép.
                     await ReminderScheduler.shared.resyncFromStore()
+                    // A kérdésbank seedelése + a heti aksi-rákérdezések újrasorsolása.
+                    QuestionSeeder.seedFactoryPackIfNeeded(in: modelContainer.mainContext)
+                    await MoodPromptScheduler.shared.resyncFromStore(container: modelContainer)
                 }
         }
         .modelContainer(modelContainer)
