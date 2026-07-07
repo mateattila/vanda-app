@@ -1,6 +1,6 @@
 # Vanda App — Specifikáció
 
-**Verzió:** 1.2 (2026-07-06)
+**Verzió:** 1.3 (2026-07-07)
 **Státusz:** Fejlesztésre kész, fázisokra bontva
 **Cél:** Ez a dokumentum a Claude Code-dal folytatott fejlesztés referenciája. Minden fázis önállóan leszállítható.
 
@@ -46,9 +46,9 @@ A párosítás egyszeri QR-kóddal vagy 6 jegyű kóddal történik, a backend k
 
 ### 2.1 Megjelenés és navigáció
 
-- **Alsó tab bar** a fő funkciókkal (Vanda kérése). Javasolt kiosztás: **Ma** (napi progress + aksi-gyorskitöltés) · **Ébresztő** · **Panik** (középen, vizuálisan kiemelt) · **Napló** · **Unatkozom**. Az emlékeztetők kezelése a Ma fülről nyílik, a beállítások a profilikonról.
-- **Testreszabás:** Vanda saját háttérképet (fotóból) és kiemelőszínt választhat — első körben globálisan, később akár képernyőnként (`ThemeSettings`). A gyári témák mellett a "sajátot csinálok" út az elsődleges.
-- A tab-kiosztás induló javaslat — Vandával papíron/skiccben érdemes véglegesíteni, mielőtt a 0. fázis épül.
+- **Alsó tab bar** a fő funkciókkal (Vanda kérése), a design-körben véglegesítve: **Ma** (napi progress + aksi-gyorskitöltés) · **Ébresztő** · **Napló** · **Unatkozom** — 4 fül. A **Panik nem fül**, hanem kiemelt, visszafogottan lüktető gomb a Ma képernyő fejlécében (vizuális részletek: `docs/design/design-tokens.md`). Mivel a Ma az induló fül, a panikgomb app-nyitásból 1 érintésre van.
+- Az emlékeztetők kezelése a Ma fülről nyílik; a beállítások a Ma fejlécének fogaskerék-ikonjáról (Beállítások › Kinézet: háttér + kiemelőszín, megosztás-kapcsolók).
+- **Testreszabás:** Vanda saját háttérképet (fotóból) és kiemelőszínt választhat — első körben globálisan, később akár képernyőnként (`ThemeSettings`). A gyári témák mellett a "sajátot csinálok" út az elsődleges. Fotó-háttérnél olvashatósági overlay + áttetsző kártyák (design-tokens 2. fejezet).
 
 ---
 
@@ -122,7 +122,7 @@ A **tevékenység-katalógus** (`Activity`) közös háttere három nézetnek: u
 **Cél:** rossz pillanatban azonnal elérhető segítség, két szinten; a szülők riasztása Vanda döntése.
 
 **Működés:**
-- A gomb az app főképernyőjéről mindig 1 érintésre elérhető.
+- A panikgomb kiemelt, visszafogottan lüktető gomb a Ma képernyő fejlécében (nem tab-fül — a design-körben eldöntve). A Ma az induló fül, így app-nyitásból 1 érintésre elérhető; a lüktetés a design-tokens 6. fejezete szerinti finom, ~3 mp-es ciklus.
 - **1. szint — eszközök:** megnyomás után Vanda pár szóval/emoji-val jelezheti, mi van ("félek", "dühös vagyok", "nem tudok megnyugodni" — előre definiált chipek + szabad szöveg). Az app a helyzethez illő eszközöket ajánl:
   - vezetett légzés-animáció (box breathing / 4-7-8, táguló-szűkülő kör),
   - 5-4-3-2-1 grounding gyakorlat (lépésenként vezetve),
@@ -201,7 +201,7 @@ Minden fázis önállóan használható appot ad. Claude Code-dal fázisonként 
 
 ### 0. fázis — Alapozás
 - Xcode projekt, SwiftUI app váz, SwiftData modellek **CloudKit-szinkronnal** (iPhone + iPad-en tesztelve).
-- **Navigáció:** alsó tab bar a fő funkciókkal, középen kiemelt panikgombbal (2.1) — a Panik fül tartalma későbbi fázisban élesedik, de a helye kezdettől ott van.
+- **Navigáció:** 4 fülös alsó tab bar (Ma · Ébresztő · Napló · Unatkozom), a Ma fejlécében a kiemelt, lüktető Panik gombbal (2.1) — a panik-képernyő tartalma a 4. fázisban élesedik, de a gomb helye kezdettől ott van.
 - **Téma-rendszer:** háttérkép- és színválasztás alapjai (`ThemeSettings`) — Vanda az első pillanattól a magáévá teheti a felületet.
 - Design-alap: színpaletta, tipográfia, az app kedves/játékos hangneme (Vandával közösen választva).
 - Gyerek/szülő mód váz (szülő mód még üres).
@@ -268,7 +268,7 @@ Alapszabály mindenhol: **generál → ember jóváhagy → bekerül.** Elsődle
 7. Barométer- és progress-megosztás alapértelmezése (be/ki) és pontos tartalma — Vandával megbeszélendő.
 8. Szinkron-architektúra megerősítése: a munkadöntés a **hibrid** (CloudKit szinkron + backend escrow/megosztás). Ha a CloudKit-korlátok gondot okoznának, az alternatíva a teljes saját backend-szinkron — de ez lényegesen több munka (konfliktuskezelés, offline sor).
 9. Diktálós naplóválasz (on-device Speech) bevezetésének ideje.
-10. Tab bar végleges kiosztása — Vandával skiccelve a 0. fázis előtt.
+10. Tab bar kiosztása — **eldőlt** a design-körben (v1.3): 4 fül + Panik gomb a Ma fejlécében, lásd 2.1 és `docs/design/design-tokens.md`.
 
 ---
 

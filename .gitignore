@@ -1,3 +1,11 @@
+# macOS
+.DS_Store
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
 # Keep docs and config files
 !docs
 !CLAUDE.md
