@@ -14,7 +14,7 @@ struct CalmActivitiesView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var activities: [Activity]
 
-    @State private var addedID: UUID?
+    @State private var addedIDs: Set<UUID> = []
 
     private var calmActivities: [Activity] {
         activities.filter { $0.activityTags.contains(.calming) }
@@ -61,7 +61,7 @@ struct CalmActivitiesView: View {
                                             }
                                         }
                                         Spacer()
-                                        Text(addedID == activity.id ? "Ma-listán ✓" : "Kipróbálom")
+                                        Text(addedIDs.contains(activity.id) ? "Ma-listán ✓" : "Kipróbálom")
                                             .font(.vandaCaption())
                                             .foregroundStyle(.white.opacity(0.85))
                                     }
@@ -100,12 +100,12 @@ struct CalmActivitiesView: View {
     }
 
     private func accept(_ activity: Activity) {
-        guard addedID != activity.id else { return }
+        guard !addedIDs.contains(activity.id) else { return }
         let task = DailyTask()
         task.title = "\(activity.emoji) \(activity.title)"
         task.source = .today
         modelContext.insert(task)
-        withAnimation(.snappy) { addedID = activity.id }
+        withAnimation(.snappy) { _ = addedIDs.insert(activity.id) }
     }
 }
 
