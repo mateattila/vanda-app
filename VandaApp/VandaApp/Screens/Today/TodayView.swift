@@ -52,7 +52,7 @@ struct TodayView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .fullScreenCover(isPresented: $isPanicPresented) {
-                PanicPlaceholderView()
+                PanicView()
             }
             .sheet(isPresented: $isMoodCheckPresented) {
                 MoodCheckView()
