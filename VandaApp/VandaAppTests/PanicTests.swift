@@ -86,3 +86,19 @@ struct BreathingPatternTests {
         #expect(pattern.circleScale(at: 13) < 0.7)
     }
 }
+
+// MARK: - Grounding (5-4-3-2-1)
+
+struct GroundingGuideTests {
+
+    @Test func hasFiveStepsCountingDown() {
+        #expect(GroundingGuide.steps.map(\.count) == [5, 4, 3, 2, 1])
+    }
+
+    @Test func everyStepHasTitleAndHint() {
+        for step in GroundingGuide.steps {
+            #expect(!step.title.isEmpty)
+            #expect(!step.hint.isEmpty)
+        }
+    }
+}
