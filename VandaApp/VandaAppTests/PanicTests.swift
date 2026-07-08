@@ -102,3 +102,33 @@ struct GroundingGuideTests {
         }
     }
 }
+
+// MARK: - Érzés → eszköz-ajánlás
+
+struct PanicToolboxTests {
+
+    @Test func defaultOrderContainsEveryToolOnce() {
+        let order = PanicToolbox.recommendedOrder(for: nil)
+        #expect(Set(order) == Set(PanicToolID.allCases))
+        #expect(order.count == PanicToolID.allCases.count)
+    }
+
+    @Test(arguments: PanicFeeling.allCases)
+    func everyFeelingRanksEveryToolOnce(feeling: PanicFeeling) {
+        let order = PanicToolbox.recommendedOrder(for: feeling)
+        #expect(Set(order) == Set(PanicToolID.allCases))
+        #expect(order.count == PanicToolID.allCases.count)
+    }
+
+    @Test func scaredLeadsWithBreathing() {
+        #expect(PanicToolbox.recommendedOrder(for: .scared).first == .breathing)
+    }
+
+    @Test func angryLeadsWithGrounding() {
+        #expect(PanicToolbox.recommendedOrder(for: .angry).first == .grounding)
+    }
+
+    @Test func sadLeadsWithCalmFolder() {
+        #expect(PanicToolbox.recommendedOrder(for: .sad).first == .calmFolder)
+    }
+}
