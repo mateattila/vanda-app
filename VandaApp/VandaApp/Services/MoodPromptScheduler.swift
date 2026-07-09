@@ -16,9 +16,24 @@ final class MoodPromptScheduler {
 
     static let categoryID = "VANDA_MOOD"
     static let pendingFlagKey = "moodPromptPending"
+    static let todayFireDatesKey = "moodTodayFireDates"
     private static let identifierPrefix = "mood_"
 
-    func resync(settings: MoodSettings) async {
+    /// Igaz, ha ma már szólt (vagy Vanda már válaszolt) egy rákérdezés —
+    /// ilyenkor az újrasorsolás a mai napot kihagyja, különben az app minden
+    /// megnyitása (tipikusan épp a prompt-ra!) második aznapi kérdezést sorsolna.
+    static func shouldSkipToday(
+        storedFireDates: [Date],
+        hasEntryToday: Bool,
+        pendingFlag: Bool,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Bool {
+        if hasEntryToday || pendingFlag { return true }
+        return storedFireDates.contains { calendar.isDate($0, inSameDayAs: now) && $0 <= now }
+    }
+
+    func resync(settings: MoodSettings, hasEntryToday: Bool = false) async {
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
         let ours = pending.map(\.identifier).filter { $0.hasPrefix(Self.identifierPrefix) }
@@ -26,12 +41,21 @@ final class MoodPromptScheduler {
 
         guard settings.promptsPerDay > 0 else { return }
 
+        let defaults = UserDefaults.standard
+        let storedDates = (defaults.array(forKey: Self.todayFireDatesKey) as? [Date]) ?? []
+        let skipToday = Self.shouldSkipToday(
+            storedFireDates: storedDates,
+            hasEntryToday: hasEntryToday,
+            pendingFlag: defaults.bool(forKey: Self.pendingFlagKey)
+        )
+
         let calendar = Calendar.current
         let startHour = min(settings.promptWindowStartHour, settings.promptWindowEndHour)
         let endHour = max(settings.promptWindowStartHour, settings.promptWindowEndHour, startHour + 1)
         let windowMinutes = (endHour - startHour) * 60
 
-        for dayOffset in 0..<7 {
+        var todayFireDates: [Date] = skipToday ? storedDates : []
+        for dayOffset in (skipToday ? 1 : 0)..<7 {
             guard let day = calendar.date(byAdding: .day, value: dayOffset, to: Date()) else { continue }
             for promptIndex in 0..<min(settings.promptsPerDay, 2) {
                 // A sáv promptonkénti szeletén belül sorsolunk, hogy két kérdezés ne essen egymásra.
@@ -58,12 +82,19 @@ final class MoodPromptScheduler {
                     trigger: trigger
                 )
                 try? await center.add(request)
+                if dayOffset == 0 {
+                    todayFireDates.append(fireDate)
+                }
             }
         }
+        defaults.set(todayFireDates, forKey: Self.todayFireDatesKey)
     }
 
+    @MainActor
     func resyncFromStore(container: ModelContainer) async {
         let settings = MoodSettings.ensureCurrent(in: container.mainContext)
-        await resync(settings: settings)
+        let entries = (try? container.mainContext.fetch(FetchDescriptor<MoodEntry>())) ?? []
+        let hasEntryToday = entries.contains { Calendar.current.isDateInToday($0.timestamp) }
+        await resync(settings: settings, hasEntryToday: hasEntryToday)
     }
 }
