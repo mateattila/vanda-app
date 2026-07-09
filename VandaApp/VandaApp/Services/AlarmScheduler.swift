@@ -45,9 +45,19 @@ final class AlarmScheduler {
 
     // MARK: - Újraszinkron
 
+    /// A rendszerben élő, de egyik profil nyilvántartásában sem szereplő
+    /// alarmok — pl. régebbi buildek maradványai. Ezek „fantomként" csörögnek:
+    /// az app nem ismeri fel őket, feladvány és leállítás sincs hozzájuk
+    /// (2026-07-09-i eszközös visszajelzés).
+    static func orphanAlarmIDs(system: Set<UUID>, tracked: Set<UUID>) -> Set<UUID> {
+        system.subtracting(tracked)
+    }
+
     /// Minden profil láncának újraütemezése a következő előfordulásra.
     /// Aktív (épp csörgő/futó) láncot nem piszkál — azt a feladvány zárja le.
+    /// Elsőként az árva alarmokat söpri ki a rendszerből.
     func resync(profiles: [AlarmProfile]) async {
+        sweepOrphanAlarms(profiles: profiles)
         for profile in profiles {
             if isChainWindowActive(for: profile) && !isSolvedCurrentOccurrence(profile) {
                 continue
@@ -140,6 +150,19 @@ final class AlarmScheduler {
             try? AlarmManager.shared.cancel(id: id)
         }
         defaults.removeObject(forKey: chainKey(profile))
+    }
+
+    private func sweepOrphanAlarms(profiles: [AlarmProfile]) {
+        let tracked = Set(
+            profiles
+                .flatMap { defaults.stringArray(forKey: chainKey($0)) ?? [] }
+                .compactMap(UUID.init(uuidString:))
+        )
+        let system = Set(((try? AlarmManager.shared.alarms) ?? []).map(\.id))
+        for id in Self.orphanAlarmIDs(system: system, tracked: tracked) {
+            try? AlarmManager.shared.stop(id: id)
+            try? AlarmManager.shared.cancel(id: id)
+        }
     }
 
     /// Profil törlésekor hívandó.

@@ -76,3 +76,34 @@ struct MoodPromptSkipTodayTests {
         ))
     }
 }
+
+// MARK: - Árva alarmok (fantom ébresztés)
+
+struct OrphanAlarmTests {
+
+    @Test func alarmsUnknownToAnyProfileAreOrphans() {
+        let tracked = UUID()
+        let orphan = UUID()
+        let result = AlarmScheduler.orphanAlarmIDs(
+            system: [tracked, orphan],
+            tracked: [tracked]
+        )
+        #expect(result == [orphan])
+    }
+
+    @Test func nothingIsOrphanWhenAllTracked() {
+        let a = UUID()
+        let b = UUID()
+        #expect(AlarmScheduler.orphanAlarmIDs(system: [a, b], tracked: [a, b]).isEmpty)
+    }
+
+    @Test func trackedButNotScheduledIsNotAnOrphan() {
+        // A defaults-ban őrzött, de a rendszerben már nem élő ID nem söprendő.
+        let system = UUID()
+        let onlyTracked = UUID()
+        #expect(AlarmScheduler.orphanAlarmIDs(
+            system: [system],
+            tracked: [system, onlyTracked]
+        ).isEmpty)
+    }
+}
