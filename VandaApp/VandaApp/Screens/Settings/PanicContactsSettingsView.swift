@@ -132,7 +132,7 @@ private struct PanicContactEditor: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Mentés") { save() }
                         .disabled(label.trimmingCharacters(in: .whitespaces).isEmpty
-                                  || phoneNumber.trimmingCharacters(in: .whitespaces).isEmpty)
+                                  || !PanicContact.dialableNumber(from: phoneNumber).contains(where: \.isWholeNumber))
                 }
             }
             .onAppear {

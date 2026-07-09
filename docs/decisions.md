@@ -73,3 +73,7 @@ Az importált hangfájl változatlanul másolódik a Library/Sounds alá (mp3/m4
 ## 2026-07-07 — Tartomány-tokenek: egy konkrét érték
 
 A design-tokens tartományokat ad (kártya radius 22–26, gap 13–16 stb.); a `Theme` egy-egy konkrét középértéket rögzít (24, 14, …), hogy a UI egységes legyen. Képernyőnkénti eltérés csak indokolt esetben, a tokenen keresztül.
+
+## 2026-07-09 — Fázis 4.1 apró eltérések: FlowLayout-ütközés, Set-alapú duplikátumőr, tel: forma
+
+Három apró eltérés a 4.1 tervhez képest, végleges review során derültek ki. (1) A terv `FlowLayout`-ja `PanicFlowLayout`-ra lett átnevezve — a modulban már létezik egy top-level `FlowLayout` (JournalTemplateFillView.swift), és a névütközés modul-szinten fennáll, `fileprivate`-től függetlenül. (2) A `CalmActivitiesView` tervezett skaláris `addedID` duplikátumőre helyett `Set<UUID>` került, mert a skaláris változat csak a legutóbb hozzáadott DailyTaskot tudta megjegyezni — több elem hozzáadásakor duplikátum DailyTask és félrevezető ✓ jelent meg. (3) A `PanicContact` hívás-linkjei közül a `tel:` séma a design-dokumentum szerinti RFC 3966 formára javítva (kettőspont, „//” nélkül: `tel:+36301234567`); a FaceTime linkek Apple dokumentált formájukban maradtak (`facetime://`, `facetime-audio://`).

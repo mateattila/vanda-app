@@ -24,8 +24,11 @@ final class PanicContact {
 
 extension PanicContact {
     /// Csak számjegyek + esetleges vezető „+" („06 30 123-4567" → „06301234567").
-    var dialableNumber: String {
-        let trimmed = phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+    var dialableNumber: String { Self.dialableNumber(from: phoneNumber) }
+
+    /// Csak számjegyek + esetleges vezető „+" („06 30 123-4567" → „06301234567").
+    static func dialableNumber(from raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         var result = ""
         for character in trimmed {
             if character.isWholeNumber {
@@ -37,13 +40,15 @@ extension PanicContact {
         return result
     }
 
-    var telURL: URL? { deepLink(scheme: "tel") }
-    var faceTimeVideoURL: URL? { deepLink(scheme: "facetime") }
-    var faceTimeAudioURL: URL? { deepLink(scheme: "facetime-audio") }
+    /// RFC 3966 / Apple dokumentált forma: „tel:” — kettőspont, nincs „//”.
+    var telURL: URL? { deepLink(prefix: "tel:") }
+    var faceTimeVideoURL: URL? { deepLink(prefix: "facetime://") }
+    var faceTimeAudioURL: URL? { deepLink(prefix: "facetime-audio://") }
 
-    private func deepLink(scheme: String) -> URL? {
+    private func deepLink(prefix: String) -> URL? {
         let number = dialableNumber
-        guard !number.isEmpty else { return nil }
-        return URL(string: "\(scheme)://\(number)")
+        // Egy magányos „+” (számjegy nélkül) nem hívható szám.
+        guard number.contains(where: \.isWholeNumber) else { return nil }
+        return URL(string: "\(prefix)\(number)")
     }
 }

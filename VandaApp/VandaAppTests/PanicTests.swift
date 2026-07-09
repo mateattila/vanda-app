@@ -42,9 +42,20 @@ struct PanicContactTests {
 
     @Test func urlsUseTheRightSchemes() {
         let c = contact("+36301234567")
-        #expect(c.telURL?.absoluteString == "tel://+36301234567")
+        #expect(c.telURL?.absoluteString == "tel:+36301234567")
         #expect(c.faceTimeVideoURL?.absoluteString == "facetime://+36301234567")
         #expect(c.faceTimeAudioURL?.absoluteString == "facetime-audio://+36301234567")
+    }
+
+    @Test func dialableNumberFromNonDigitTextIsEmpty() {
+        #expect(PanicContact.dialableNumber(from: "anya mobilja") == "")
+    }
+
+    @Test func dialableNumberFromLonePlusIsJustPlus() {
+        #expect(PanicContact.dialableNumber(from: "+") == "+")
+        #expect(contact("+").telURL == nil)
+        #expect(contact("+").faceTimeVideoURL == nil)
+        #expect(contact("+").faceTimeAudioURL == nil)
     }
 }
 
