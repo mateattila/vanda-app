@@ -44,6 +44,17 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
 
+                    NavigationLink {
+                        PanicContactsSettingsView()
+                    } label: {
+                        settingsRow(
+                            symbol: "phone.fill",
+                            title: "Hívható szülők",
+                            subtitle: "A panik-képernyő hívás-gombjai"
+                        )
+                    }
+                    .buttonStyle(.plain)
+
                     settingsRow(
                         symbol: "person.2.fill",
                         title: "Megosztás a szülőkkel",
