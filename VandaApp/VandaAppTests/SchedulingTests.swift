@@ -107,3 +107,20 @@ struct OrphanAlarmTests {
         ).isEmpty)
     }
 }
+
+// MARK: - Emlékeztető: szundi-akciók
+
+struct ReminderSnoozeTests {
+
+    @Test func snoozeActionsMapToTheirIntervals() {
+        #expect(ReminderScheduler.snoozeInterval(for: ReminderScheduler.snooze10ActionID) == TimeInterval(10 * 60))
+        #expect(ReminderScheduler.snoozeInterval(for: ReminderScheduler.snooze30ActionID) == TimeInterval(30 * 60))
+        #expect(ReminderScheduler.snoozeInterval(for: ReminderScheduler.snooze60ActionID) == TimeInterval(60 * 60))
+    }
+
+    @Test func nonSnoozeActionsHaveNoInterval() {
+        #expect(ReminderScheduler.snoozeInterval(for: ReminderScheduler.doneActionID) == nil)
+        #expect(ReminderScheduler.snoozeInterval(for: ReminderScheduler.skipTodayActionID) == nil)
+        #expect(ReminderScheduler.snoozeInterval(for: "UNNotificationDefaultActionIdentifier") == nil)
+    }
+}

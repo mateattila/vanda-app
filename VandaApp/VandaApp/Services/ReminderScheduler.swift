@@ -16,7 +16,24 @@ final class ReminderScheduler: NSObject {
 
     static let categoryID = "VANDA_REMINDER"
     static let doneActionID = "REMINDER_DONE"
+    static let snooze10ActionID = "REMINDER_SNOOZE_10"
+    static let snooze30ActionID = "REMINDER_SNOOZE_30"
+    static let snooze60ActionID = "REMINDER_SNOOZE_60"
+    static let skipTodayActionID = "REMINDER_SKIP_TODAY"
     private static let identifierPrefix = "reminder_"
+    /// A szundizott egyszeri értesítések előtagja — szándékosan NEM a
+    /// `reminder_` előtag, hogy a resync ne söpörje ki a függő szundikat.
+    private static let snoozeIdentifierPrefix = "reminderSnooze_"
+
+    /// Szundi-akcióhoz tartozó késleltetés; nem-szundi akcióra nil.
+    static func snoozeInterval(for actionID: String) -> TimeInterval? {
+        switch actionID {
+        case snooze10ActionID: 10 * 60
+        case snooze30ActionID: 30 * 60
+        case snooze60ActionID: 60 * 60
+        default: nil
+        }
+    }
 
     private var modelContainer: ModelContainer?
 
@@ -31,9 +48,15 @@ final class ReminderScheduler: NSObject {
             title: "✓ Kész",
             options: []
         )
+        // Szundi + mai alkalom kihagyása (2026-07-09-i kérés). A „Ma kihagyom"
+        // szándékosan nem töröl semmit — az emlékeztető holnap újra szól.
+        let snooze10 = UNNotificationAction(identifier: Self.snooze10ActionID, title: "+10 perc", options: [])
+        let snooze30 = UNNotificationAction(identifier: Self.snooze30ActionID, title: "+30 perc", options: [])
+        let snooze60 = UNNotificationAction(identifier: Self.snooze60ActionID, title: "+1 óra", options: [])
+        let skipToday = UNNotificationAction(identifier: Self.skipTodayActionID, title: "Ma kihagyom", options: [])
         let reminderCategory = UNNotificationCategory(
             identifier: Self.categoryID,
-            actions: [done],
+            actions: [done, snooze10, snooze30, snooze60, skipToday],
             intentIdentifiers: [],
             options: []
         )
@@ -151,10 +174,36 @@ extension ReminderScheduler: UNUserNotificationCenterDelegate {
                 return
             }
 
-            guard actionID == Self.doneActionID,
-                  let reminderIDString,
+            // Szundi: ugyanaz a tartalom még egyszer, eltolva. Külön előtaggal,
+            // hogy egy közbeeső resync ne törölje.
+            if let interval = Self.snoozeInterval(for: actionID) {
+                let content = response.notification.request.content.mutableCopy() as! UNMutableNotificationContent
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+                let request = UNNotificationRequest(
+                    identifier: "\(Self.snoozeIdentifierPrefix)\(UUID().uuidString)",
+                    content: content,
+                    trigger: trigger
+                )
+                try? await center.add(request)
+                return
+            }
+
+            guard let reminderIDString,
                   let reminderID = UUID(uuidString: reminderIDString),
                   let container = self.modelContainer else { return }
+
+            // „Ma kihagyom": csak feljegyezzük — se pipa, se bűntudat,
+            // az emlékeztető holnap ugyanúgy szól.
+            if actionID == Self.skipTodayActionID {
+                let log = ReminderLog()
+                log.reminderID = reminderID
+                log.status = .skipped
+                container.mainContext.insert(log)
+                try? container.mainContext.save()
+                return
+            }
+
+            guard actionID == Self.doneActionID else { return }
 
             let log = ReminderLog()
             log.reminderID = reminderID
