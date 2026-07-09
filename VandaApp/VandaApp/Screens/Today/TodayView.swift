@@ -20,9 +20,16 @@ struct TodayView: View {
     @Query private var allLogs: [ReminderLog]
     @Query(sort: \MoodEntry.timestamp) private var moodEntries: [MoodEntry]
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var isPanicPresented = false
     @State private var isMoodCheckPresented = false
     @State private var newTaskTitle = ""
+
+    /// A „ma" horgonya. A @Query adatváltozásra frissít, az idő múlására nem —
+    /// e nélkül az éjfélt háttérben átvészelő app reggel a tegnapi falat
+    /// mutatná (2026-07-09-i eszközös visszajelzés). Napváltáskor és előtérbe
+    /// kerüléskor újraáll, és vele minden mai szűrés újraértékelődik.
+    @State private var today = Calendar.current.startOfDay(for: Date())
 
     /// A nagy szám skálázásához nem-szöveg méret is tartozik (akku-csík) —
     /// Dynamic Type-pal együtt nő.
@@ -51,6 +58,14 @@ struct TodayView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+                today = Calendar.current.startOfDay(for: Date())
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    today = Calendar.current.startOfDay(for: Date())
+                }
+            }
             .fullScreenCover(isPresented: $isPanicPresented) {
                 PanicView()
             }
@@ -71,14 +86,14 @@ struct TodayView: View {
     }
 
     private var todayLogs: [ReminderLog] {
-        allLogs.filter { Calendar.current.isDateInToday($0.date) && $0.status == .done }
+        allLogs.filter { Calendar.current.isDate($0.date, inSameDayAs: today) && $0.status == .done }
     }
 
     private var reminderItems: [ReminderWallItem] {
         let logCounts = Dictionary(grouping: todayLogs.compactMap(\.reminderID)) { $0 }
             .mapValues(\.count)
         return reminders.compactMap { reminder in
-            let total = reminder.occurrences(on: Date())
+            let total = reminder.occurrences(on: today)
             guard total > 0 else { return nil }
             let done = min(logCounts[reminder.id] ?? 0, total)
             return ReminderWallItem(reminder: reminder, total: total, done: done)
@@ -86,7 +101,7 @@ struct TodayView: View {
     }
 
     private var todayTasks: [DailyTask] {
-        allTasks.filter { Calendar.current.isDateInToday($0.date) }
+        allTasks.filter { Calendar.current.isDate($0.date, inSameDayAs: today) }
     }
 
     /// A nap töltöttsége: kész egységek / összes egység (emlékeztető-előfordulások + teendők)
@@ -211,7 +226,7 @@ struct TodayView: View {
     // MARK: - Barométer mini
 
     private var todayMood: MoodEntry? {
-        moodEntries.last { Calendar.current.isDateInToday($0.timestamp) }
+        moodEntries.last { Calendar.current.isDate($0.timestamp, inSameDayAs: today) }
     }
 
     private var barometerCard: some View {
