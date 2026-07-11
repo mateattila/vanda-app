@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { requireDevice, requireRole, type AuthEnv } from './auth';
 import { newBearerToken, newPairingCode, sha256Hex } from './tokens';
 import { isCodeUsable, PAIRING_CODE_TTL_MS, type PairingCodeRow } from './pairing';
+import { sendPush } from './apns';
 
 const app = new Hono<AuthEnv>();
 
@@ -102,6 +103,33 @@ app.put('/devices/me/apns-token', requireDevice, async (c) => {
     .run();
 
   return c.body(null, 204);
+});
+
+app.post('/test-pushes', requireDevice, requireRole('child'), async (c) => {
+  const device = c.get('device');
+  const parents = await c.env.DB
+    .prepare(
+      "SELECT id, apns_token FROM devices WHERE family_id = ? AND role = 'parent' AND apns_token IS NOT NULL"
+    )
+    .bind(device.family_id)
+    .all<{ id: string; apns_token: string }>();
+
+  const results: { deviceId: string; status: number }[] = [];
+  for (const parent of parents.results) {
+    const status = await sendPush(c.env, parent.apns_token, {
+      aps: {
+        alert: {
+          title: 'Próba-jelzés 💛',
+          body: `${device.name || 'Vanda készüléke'} össze van kötve veletek.`,
+        },
+        sound: 'default',
+      },
+    });
+    results.push({ deviceId: parent.id, status });
+  }
+
+  console.log(JSON.stringify({ event: 'test_push', family: device.family_id, results }));
+  return c.json({ results });
 });
 
 export default app;
