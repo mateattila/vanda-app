@@ -3,7 +3,7 @@ import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-pool-worker
 
 // Teszt-fixture P-256 kulcs — NEM titok, kizárólag a JWT-aláírás unit tesztjéhez
 // generált eldobható kulcspár (a párja a tesztfájlban lévő publikus kulcs).
-export const TEST_APNS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+const TEST_APNS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg9YkeBF9Ngqi9ui3x
 0MuY+62eO5fJvD/tdudghHUGwIOhRANCAAS2QfeCuMMsIe8AIs9eOIdfoO8SM1Ff
 V7u6xKHfYj9GYElHOyoBEnMNAHOnTZlzgfrLme6IHjOKMspMXaRRvFKm

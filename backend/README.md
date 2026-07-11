@@ -1,16 +1,16 @@
 # Vanda Backend
 
-Minimál Cloudflare Workers backend (TypeScript + Hono, D1 + R2) az iOS Vanda apphoz.
+Minimál Cloudflare Workers backend (TypeScript + Hono, D1) az iOS Vanda apphoz.
 
 ## API-végpontok
 
 | Végpont | HTTP | Ki hívhatja | Mit ad vissza |
 |---------|------|-------------|---------------|
-| `/health` | GET | Nyílvan | `{ ok: true }` |
-| `/families` | POST | Nyílván (első eszköz-regisztráció) | `{ familyId, deviceId, token }` |
+| `/health` | GET | Nyilvános | `{ ok: true }` |
+| `/families` | POST | Nyilvános (első eszköz-regisztráció) | `{ familyId, deviceId, token }` |
 | `/me` | GET | Bármelyik eszköz (Bearer token) | `{ deviceId, familyId, role, name, hasApnsToken }` |
-| `/pairing-codes` | POST | Gyerek eszköz | `{ code, expiresAt }` — 6 jegyű, 10 perc TTL |
-| `/pair` | POST | Nyílván (szülő párosítás) | `{ familyId, deviceId, token }` |
+| `/pairing-codes` | POST | Gyerek eszköz | `{ code, expiresAt }` — 6 jegyű, 10 perc TTL (`expiresAt`: ezredmásodperces epoch timestamp) |
+| `/pair` | POST | Nyilvános (szülő párosítás) | `{ familyId, deviceId, token }` |
 | `/devices/me/apns-token` | PUT | Bármelyik eszköz | 204 No Content |
 | `/test-pushes` | POST | Gyerek eszköz | `{ results: [{ deviceId, status }] }` — APNs teszt szülőknek |
 
@@ -19,7 +19,7 @@ Minimál Cloudflare Workers backend (TypeScript + Hono, D1 + R2) az iOS Vanda ap
 ```bash
 npm install          # Függőségek telepítése
 npm run dev          # Wrangler dev szerver
-npm test             # Vitest, 25 teszt
+npm test             # Vitest, 26 teszt
 npm run check        # TypeScript statikus analízis (src)
 npm run check:test   # TypeScript statikus analízis (src + test)
 npm run deploy       # Cloudflare Workers deploy
@@ -35,9 +35,15 @@ npm run deploy       # Cloudflare Workers deploy
 5. Secretek:
    - `npx wrangler secret put APNS_TEAM_ID`
    - `npx wrangler secret put APNS_KEY_ID`
-   - `npx wrangler secret put APNS_PRIVATE_KEY`  ← a .p8 fájl teljes PEM-tartalma
+   - `npx wrangler secret put APNS_PRIVATE_KEY < AuthKey_XXXXXX.p8`  ← a .p8 fájl teljes PEM-tartalma
+
+   **Figyelem:** az `APNS_PRIVATE_KEY` több soros — az interaktív `wrangler secret put`
+   (beillesztés a terminálba) csak az első sort kapja el, a kulcs csendben csonkul.
+   A fájlt kötelező bemenetként átirányítani (`< AuthKey_XXXXXX.p8`), nem beilleszteni.
 6. `npx wrangler deploy` — jegyezd fel a workers.dev URL-t (a 4.2b iOS-kliens ezt kapja)
-7. Xcode: VandaApp target → Signing & Capabilities → + Push Notifications
+7. Ellenőrzés: `curl https://<worker-url>/health` → várt válasz `{"ok":true}`.
+   Ha ez megvan, a deploy jó, mehet a következő lépés eszközön.
+8. Xcode: VandaApp target → Signing & Capabilities → + Push Notifications
    (a Time Sensitive a 4.3-ban jön)
 
 **APNS_HOST:** Xcode-ról telepített (development) buildhez a sandbox host kell
@@ -46,3 +52,12 @@ npm run deploy       # Cloudflare Workers deploy
 
 **Fontos:** az APNs-hívás lokális `wrangler dev`-ből macOS-en nem működik
 (HTTP/2-korlát, workerd #4841) — a push-próba csak deployolt Workerrel megy.
+
+## Biztonsági megközelítés
+
+Ez egy családi app, nem publikus szolgáltatás: a workers.dev URL nem hirdetett,
+és szándékosan nincs rate limiting. A `POST /pair` végpont hitelesítés nélküli —
+a 6 jegyű párosítási kód elméletileg brute-force-olható, de csak addig, amíg a
+kód érvényes (10 perces TTL), utána a próbálkozás értelmetlenné válik. Ezt v1-re
+elfogadott kockázatnak tekintjük. Ha az app több családhoz vagy publikus URL-hez
+kerülne, a `/pair` és `/pairing-codes` végpontokra rate limitinget kell bevezetni.

@@ -101,6 +101,37 @@ describe('POST /test-pushes', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('reports the APNs HTTP status when the push is rejected (non-200 response)', async () => {
+    const { childToken, parentToken } = await pairedFamily();
+    await SELF.fetch('https://vanda.test/devices/me/apns-token', {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${parentToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ token: 'parentdevicetoken1' }),
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const request = new Request(input as RequestInfo, init);
+      const url = new URL(request.url);
+      if (
+        request.method === 'POST' &&
+        url.origin === 'https://api.sandbox.push.apple.com' &&
+        url.pathname === '/3/device/parentdevicetoken1'
+      ) {
+        return new Response(JSON.stringify({ reason: 'BadDeviceToken' }), { status: 400 });
+      }
+      throw new Error(`unexpected fetch in test: ${request.method} ${url.toString()}`);
+    });
+
+    const res = await SELF.fetch('https://vanda.test/test-pushes', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${childToken}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json<{ results: { deviceId: string; status: number }[] }>();
+    expect(body.results).toHaveLength(1);
+    expect(body.results[0].status).toBe(400);
+  });
+
   it('keeps pushing to the remaining parents when one push fails at transport level', async () => {
     const { childToken, parentToken } = await pairedFamily();
     // Második szülő ugyanabba a családba (új kód kell — a régi már felhasznált).
