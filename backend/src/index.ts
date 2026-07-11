@@ -58,6 +58,7 @@ app.post('/pair', async (c) => {
   const body = await c.req.json<{ code?: string; deviceName?: string }>().catch(() => ({}) as { code?: string });
   if (!body.code) return c.json({ error: 'code required' }, 400);
 
+  // Gyors út: ismeretlen vs. lejárt/felhasznált kód megkülönböztetése (404/410).
   const row = await c.env.DB
     .prepare('SELECT * FROM pairing_codes WHERE code = ?')
     .bind(body.code)
@@ -69,14 +70,24 @@ app.post('/pair', async (c) => {
   const token = newBearerToken();
   const now = Date.now();
 
-  await c.env.DB.batch([
-    c.env.DB.prepare('UPDATE pairing_codes SET used_at = ? WHERE code = ?').bind(now, row.code),
-    c.env.DB
-      .prepare(
-        'INSERT INTO devices (id, family_id, role, name, token_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-      )
-      .bind(deviceId, row.family_id, 'parent', (body as { deviceName?: string }).deviceName ?? '', await sha256Hex(token), now),
-  ]);
+  // Autoritatív kapu: feltételes claim — két egyidejű beváltásból csak az
+  // egyik érinthet sort (TOCTOU-védelem a fenti SELECT + isCodeUsable után).
+  const claim = await c.env.DB
+    .prepare(
+      'UPDATE pairing_codes SET used_at = ? WHERE code = ? AND used_at IS NULL AND expires_at >= ?'
+    )
+    .bind(now, row.code, now)
+    .run();
+  if (claim.meta.changes !== 1) return c.json({ error: 'code expired or used' }, 410);
+
+  // Ha az INSERT itt elhasal, a kód "elég" — a gyerek a 10 perces TTL-en
+  // belül egyszerűen új kódot kér. (Tudatos trade-off.)
+  await c.env.DB
+    .prepare(
+      'INSERT INTO devices (id, family_id, role, name, token_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    .bind(deviceId, row.family_id, 'parent', (body as { deviceName?: string }).deviceName ?? '', await sha256Hex(token), now)
+    .run();
 
   return c.json({ familyId: row.family_id, deviceId, token }, 201);
 });

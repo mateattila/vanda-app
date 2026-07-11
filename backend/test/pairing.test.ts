@@ -112,6 +112,63 @@ describe('pairing flow', () => {
     expect(res.status).toBe(403);
   });
 
+  it('rejects a code already claimed by a concurrent redemption and creates no device', async () => {
+    const childToken = await createFamily();
+    const code = await createCode(childToken);
+    const me = await SELF.fetch('https://vanda.test/me', {
+      headers: { authorization: `Bearer ${childToken}` },
+    });
+    const { familyId } = await me.json<{ familyId: string }>();
+
+    // Egy "versenytárs" kérés már lefoglalta a kódot — közvetlen D1-frissítéssel
+    // szimuláljuk, mert vitest-pool-workers alatt valódi párhuzamos futás nincs.
+    await env.DB.prepare('UPDATE pairing_codes SET used_at = ? WHERE code = ?')
+      .bind(Date.now(), code)
+      .run();
+
+    const res = await SELF.fetch('https://vanda.test/pair', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    expect(res.status).toBe(410);
+
+    const parents = await env.DB
+      .prepare("SELECT COUNT(*) AS n FROM devices WHERE family_id = ? AND role = 'parent'")
+      .bind(familyId)
+      .first<{ n: number }>();
+    expect(parents?.n).toBe(0);
+  });
+
+  it('burns the code atomically on pairing: the conditional claim finds nothing to re-claim', async () => {
+    const childToken = await createFamily();
+    const code = await createCode(childToken);
+
+    const pair = await SELF.fetch('https://vanda.test/pair', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    expect(pair.status).toBe(201);
+
+    // Sikeres /pair után a used_at ki van töltve, így a handlerben használt
+    // feltételes claim (azonos WHERE) 0 sort érint — a guard zár.
+    const now = Date.now();
+    const claim = await env.DB
+      .prepare(
+        'UPDATE pairing_codes SET used_at = ? WHERE code = ? AND used_at IS NULL AND expires_at >= ?'
+      )
+      .bind(now, code, now)
+      .run();
+    expect(claim.meta.changes).toBe(0);
+
+    const row = await env.DB
+      .prepare('SELECT used_at FROM pairing_codes WHERE code = ?')
+      .bind(code)
+      .first<{ used_at: number | null }>();
+    expect(row?.used_at).not.toBeNull();
+  });
+
   it('stores the apns token for the calling device', async () => {
     const childToken = await createFamily();
     const put = await SELF.fetch('https://vanda.test/devices/me/apns-token', {
