@@ -116,15 +116,30 @@ app.post('/test-pushes', requireDevice, requireRole('child'), async (c) => {
 
   const results: { deviceId: string; status: number }[] = [];
   for (const parent of parents.results) {
-    const status = await sendPush(c.env, parent.apns_token, {
-      aps: {
-        alert: {
-          title: 'Próba-jelzés 💛',
-          body: `${device.name || 'Vanda készüléke'} össze van kötve veletek.`,
+    // Transzport-hiba (DNS/timeout/reset) egy eszköznél nem szakíthatja meg a
+    // ciklust — a többi szülőnek akkor is mennie kell a push. status: 0 jelzi,
+    // hogy HTTP-státusz sem született. (4.3-ban ez lesz a pánik-push ciklusa.)
+    let status: number;
+    try {
+      status = await sendPush(c.env, parent.apns_token, {
+        aps: {
+          alert: {
+            title: 'Próba-jelzés 💛',
+            body: `${device.name || 'Vanda készüléke'} össze van kötve veletek.`,
+          },
+          sound: 'default',
         },
-        sound: 'default',
-      },
-    });
+      });
+    } catch (error) {
+      status = 0;
+      console.log(
+        JSON.stringify({
+          event: 'apns_transport_error',
+          deviceId: parent.id,
+          message: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
     results.push({ deviceId: parent.id, status });
   }
 

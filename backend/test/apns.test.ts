@@ -101,6 +101,57 @@ describe('POST /test-pushes', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps pushing to the remaining parents when one push fails at transport level', async () => {
+    const { childToken, parentToken } = await pairedFamily();
+    // Második szülő ugyanabba a családba (új kód kell — a régi már felhasznált).
+    const codeRes = await SELF.fetch('https://vanda.test/pairing-codes', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${childToken}` },
+    });
+    const { code } = await codeRes.json<{ code: string }>();
+    const pair2 = await SELF.fetch('https://vanda.test/pair', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code, deviceName: 'Apa telefonja' }),
+    });
+    const { token: parent2Token } = await pair2.json<{ token: string }>();
+
+    await SELF.fetch('https://vanda.test/devices/me/apns-token', {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${parentToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ token: 'parentdevicetoken1' }),
+    });
+    await SELF.fetch('https://vanda.test/devices/me/apns-token', {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${parent2Token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ token: 'parentdevicetoken2' }),
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const request = new Request(input as RequestInfo, init);
+      const url = new URL(request.url);
+      if (url.pathname === '/3/device/parentdevicetoken1') {
+        throw new TypeError('network connection lost'); // transzport-hiba, nincs HTTP-státusz
+      }
+      if (
+        request.method === 'POST' &&
+        url.origin === 'https://api.sandbox.push.apple.com' &&
+        url.pathname === '/3/device/parentdevicetoken2'
+      ) {
+        return new Response('', { status: 200 });
+      }
+      throw new Error(`unexpected fetch in test: ${request.method} ${url.toString()}`);
+    });
+
+    const res = await SELF.fetch('https://vanda.test/test-pushes', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${childToken}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json<{ results: { deviceId: string; status: number }[] }>();
+    expect(body.results.map((r) => r.status)).toEqual([0, 200]);
+  });
+
   it('reports when no parent device is ready', async () => {
     const { childToken } = await pairedFamily(); // szülő van, de APNs-token nincs
     const res = await SELF.fetch('https://vanda.test/test-pushes', {
