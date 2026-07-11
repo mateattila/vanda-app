@@ -1,11 +1,16 @@
 // @cloudflare/vitest-pool-workers@0.18.x types `env` from 'cloudflare:test' as
-// `Cloudflare.Env` directly (the older `ProvidedEnv extends Env` module
-// augmentation was removed). We extend that namespace with the test-only
-// migrations binding instead.
+// `Cloudflare.Env` directly. We extend that namespace with test-only bindings
+// set in vitest.config.ts (miniflare bindings).
 import type { D1Migration } from '@cloudflare/vitest-pool-workers';
 
-declare namespace Cloudflare {
-  interface Env {
-    TEST_MIGRATIONS: D1Migration[];
+// Extend the Cloudflare namespace used by 'cloudflare:test'
+declare global {
+  namespace Cloudflare {
+    interface Env {
+      TEST_MIGRATIONS: D1Migration[];
+      APNS_PRIVATE_KEY: string;
+      APNS_KEY_ID: string;
+      APNS_TEAM_ID: string;
+    }
   }
 }
