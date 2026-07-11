@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vanda-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 }
+  },
+  "vars": {
+    // Xcode-os (development) buildekhez a sandbox APNs kell; TestFlight/App Store
+    // buildekhez váltandó a production hostra: https://api.push.apple.com
+    "APNS_HOST": "https://api.sandbox.push.apple.com",
+    "APNS_TOPIC": "hu.attis.VandaApp"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "vanda",
+      "database_id": "REPLACE-AFTER-wrangler-d1-create",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
