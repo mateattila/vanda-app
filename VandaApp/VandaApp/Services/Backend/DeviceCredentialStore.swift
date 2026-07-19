@@ -20,8 +20,16 @@ protocol DeviceCredentialStoring: AnyObject {
 final class KeychainDeviceCredentialStore: DeviceCredentialStoring {
     static let shared = KeychainDeviceCredentialStore()
 
-    private let service = "hu.attis.VandaApp.backend"
-    private let account = "deviceCredentials"
+    private let service: String
+    private let account: String
+
+    /// A service/account paraméterezhető, hogy a tesztek saját, izolált
+    /// Keychain-bejegyzést használhassanak az éles tárolótól elkülönítve —
+    /// az alapérték az éles viselkedést őrzi.
+    init(service: String = "hu.attis.VandaApp.backend", account: String = "deviceCredentials") {
+        self.service = service
+        self.account = account
+    }
 
     private var baseQuery: [String: Any] {
         [
