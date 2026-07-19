@@ -12,6 +12,12 @@ import Observation
 import UIKit
 import UserNotifications
 
+/// MainActor-izolált, ugyanúgy, mint a testvér `FamilyLinkModel`: ez is egy
+/// `@Observable` modell, amit SwiftUI-nézetek hajtanak, és a `refresh()`/
+/// `request()` a rendszer async API-jainak felfüggesztése UTÁN írja a
+/// `status`-t — az UNUserNotificationCenter nem dokumentált arra, hogy a
+/// MainActoron folytatódik, tehát ez az annotáció teszi biztonságossá.
+@MainActor
 @Observable
 final class NotificationPermission {
 

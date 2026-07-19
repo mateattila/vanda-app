@@ -16,6 +16,7 @@ struct ParentModeView: View {
     @State private var enteredCode = ""
     @State private var deviceName = ""
     @State private var showUnlinkConfirm = false
+    @Environment(\.scenePhase) private var scenePhase
 
     private var defaultDeviceName: String {
         UIDevice.current.userInterfaceIdiom == .pad ? "Szülő iPadje" : "Szülő telefonja"
@@ -67,6 +68,17 @@ struct ParentModeView: View {
             }
         }
         .task { await permission.refresh() }
+        .onChange(of: scenePhase) { _, newPhase in
+            // Ez a képernyő a szülő-mód állandó gyökere (lásd RootView.swift),
+            // sose épül újra háttérbe/előtérbe váltáskor — a `.task` tehát
+            // csak egyszer, az első megjelenéskor fut le. Enélkül, ha a szülő
+            // a Beállításokban engedélyt ad, majd visszatér, a kártya
+            // örökre — appújraindításig — elavult maradna. Ugyanaz a minta,
+            // mint a MainTabView/JournalGateView/TodayView-ban.
+            if newPhase == .active {
+                Task { await permission.refresh() }
+            }
+        }
         .onAppear { deviceName = model.credentials?.deviceName ?? defaultDeviceName }
         .confirmationDialog(
             "Biztosan leválasztod ezt az eszközt?",
@@ -102,7 +114,7 @@ struct ParentModeView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 TextField("123456", text: $enteredCode)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .keyboardType(.numberPad)
                     .textContentType(.oneTimeCode)
