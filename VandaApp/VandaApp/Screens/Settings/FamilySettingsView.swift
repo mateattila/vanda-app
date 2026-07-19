@@ -80,7 +80,7 @@ struct FamilySettingsView: View {
             }
         }
         .confirmationDialog(
-            "Biztosan lekötöd ezt az eszközt a családról?",
+            "Biztosan leválasztod ezt az eszközt a családról?",
             isPresented: $showUnlinkConfirm,
             titleVisibility: .visible
         ) {
