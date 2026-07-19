@@ -8,17 +8,18 @@ async function createFamily(): Promise<string> {
   return token;
 }
 
-async function createCode(childToken: string): Promise<string> {
+async function createCode(childToken: string, role?: 'parent' | 'child'): Promise<string> {
   const res = await SELF.fetch('https://vanda.test/pairing-codes', {
     method: 'POST',
-    headers: { authorization: `Bearer ${childToken}` },
+    headers: { authorization: `Bearer ${childToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify(role ? { role } : {}),
   });
   const { code } = await res.json<{ code: string }>();
   return code;
 }
 
 describe('isCodeUsable', () => {
-  const base = { code: '123456', family_id: 'f', expires_at: 1000, used_at: null };
+  const base = { code: '123456', family_id: 'f', expires_at: 1000, used_at: null, role: 'parent' as const };
 
   it('is usable before expiry and unused', () => {
     expect(isCodeUsable(base, 999)).toBe(true);
@@ -182,5 +183,66 @@ describe('pairing flow', () => {
       headers: { authorization: `Bearer ${childToken}` },
     });
     expect((await me.json<{ hasApnsToken: boolean }>()).hasApnsToken).toBe(true);
+  });
+});
+
+describe('pairing code roles', () => {
+  async function redeem(code: string, deviceName: string) {
+    return SELF.fetch('https://vanda.test/pair', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code, deviceName }),
+    });
+  }
+
+  async function roleOf(token: string): Promise<string> {
+    const res = await SELF.fetch('https://vanda.test/me', {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    return (await res.json<{ role: string }>()).role;
+  }
+
+  it('defaults to a parent device when no role is given', async () => {
+    const childToken = await createFamily();
+    const code = await createCode(childToken);
+    const res = await redeem(code, 'Anya telefonja');
+    expect(res.status).toBe(201);
+    const body = await res.json<{ token: string; role: string }>();
+    expect(body.role).toBe('parent');
+    expect(await roleOf(body.token)).toBe('parent');
+  });
+
+  it('mints a child device from a child-role code', async () => {
+    const childToken = await createFamily();
+    const code = await createCode(childToken, 'child');
+    const res = await redeem(code, 'Vanda iPadje');
+    expect(res.status).toBe(201);
+    const body = await res.json<{ token: string; role: string }>();
+    expect(body.role).toBe('child');
+    expect(await roleOf(body.token)).toBe('child');
+  });
+
+  it('lets a paired child device issue codes of its own', async () => {
+    const childToken = await createFamily();
+    const iPadToken = await redeem(await createCode(childToken, 'child'), 'Vanda iPadje')
+      .then((r) => r.json<{ token: string }>())
+      .then((b) => b.token);
+
+    const res = await SELF.fetch('https://vanda.test/pairing-codes', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${iPadToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ role: 'parent' }),
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects an unknown role with 400', async () => {
+    const childToken = await createFamily();
+    const res = await SELF.fetch('https://vanda.test/pairing-codes', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${childToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ role: 'admin' }),
+    });
+    expect(res.status).toBe(400);
   });
 });

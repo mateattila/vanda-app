@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { requireDevice, requireRole, type AuthEnv } from './auth';
 import { newBearerToken, newPairingCode, sha256Hex } from './tokens';
-import { isCodeUsable, PAIRING_CODE_TTL_MS, type PairingCodeRow } from './pairing';
+import { isCodeUsable, isPairingRole, PAIRING_CODE_TTL_MS, type PairingCodeRow } from './pairing';
 import { sendPush } from './apns';
 
 const app = new Hono<AuthEnv>();
@@ -42,17 +42,23 @@ app.get('/me', requireDevice, (c) => {
 
 app.post('/pairing-codes', requireDevice, requireRole('child'), async (c) => {
   const device = c.get('device');
+  const body = await c.req.json<{ role?: unknown }>().catch(() => ({}) as { role?: unknown });
+  // Alapértelmezés a szülő-párosítás; a 'child' szerep Vanda második eszközét
+  // (iPad) engedi be ugyanabba a családba, saját tokennel és APNs-tokennel.
+  const role = body.role === undefined ? 'parent' : body.role;
+  if (!isPairingRole(role)) return c.json({ error: 'invalid role' }, 400);
+
   const code = newPairingCode();
   const expiresAt = Date.now() + PAIRING_CODE_TTL_MS;
 
   // Kód-ütközésnél (PRIMARY KEY) egyszerűen 500 — 10 perces ablakban egy
   // családnál gyakorlatilag kizárt; a kliens újrapróbálhat.
   await c.env.DB
-    .prepare('INSERT INTO pairing_codes (code, family_id, expires_at) VALUES (?, ?, ?)')
-    .bind(code, device.family_id, expiresAt)
+    .prepare('INSERT INTO pairing_codes (code, family_id, expires_at, role) VALUES (?, ?, ?, ?)')
+    .bind(code, device.family_id, expiresAt, role)
     .run();
 
-  return c.json({ code, expiresAt }, 201);
+  return c.json({ code, expiresAt, role }, 201);
 });
 
 app.post('/pair', async (c) => {
@@ -87,10 +93,10 @@ app.post('/pair', async (c) => {
     .prepare(
       'INSERT INTO devices (id, family_id, role, name, token_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     )
-    .bind(deviceId, row.family_id, 'parent', (body as { deviceName?: string }).deviceName ?? '', await sha256Hex(token), now)
+    .bind(deviceId, row.family_id, row.role, (body as { deviceName?: string }).deviceName ?? '', await sha256Hex(token), now)
     .run();
 
-  return c.json({ familyId: row.family_id, deviceId, token }, 201);
+  return c.json({ familyId: row.family_id, deviceId, token, role: row.role }, 201);
 });
 
 app.put('/devices/me/apns-token', requireDevice, async (c) => {
@@ -102,6 +108,15 @@ app.put('/devices/me/apns-token', requireDevice, async (c) => {
     .bind(body.token, c.get('device').id)
     .run();
 
+  return c.body(null, 204);
+});
+
+/// Eszköz-leválasztás. Csak helyi (Keychain-) törlés esetén árva sor maradna
+/// élő APNs-tokennel, és a teszt-push (4.3-ban a riasztás) egy nem létező
+/// készüléknek próbálna küldeni — a szellem-címzett a kézbesítési
+/// megbízhatóság ellen dolgozna.
+app.delete('/devices/me', requireDevice, async (c) => {
+  await c.env.DB.prepare('DELETE FROM devices WHERE id = ?').bind(c.get('device').id).run();
   return c.body(null, 204);
 });
 

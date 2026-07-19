@@ -9,9 +9,10 @@ Minimál Cloudflare Workers backend (TypeScript + Hono, D1) az iOS Vanda apphoz.
 | `/health` | GET | Nyilvános | `{ ok: true }` |
 | `/families` | POST | Nyilvános (első eszköz-regisztráció) | `{ familyId, deviceId, token }` |
 | `/me` | GET | Bármelyik eszköz (Bearer token) | `{ deviceId, familyId, role, name, hasApnsToken }` |
-| `/pairing-codes` | POST | Gyerek eszköz | `{ code, expiresAt }` — 6 jegyű, 10 perc TTL (`expiresAt`: ezredmásodperces epoch timestamp) |
-| `/pair` | POST | Nyilvános (szülő párosítás) | `{ familyId, deviceId, token }` |
+| `/pairing-codes` | POST | Gyerek eszköz | `{ code, expiresAt, role }` — 6 jegyű, 10 perc TTL (`expiresAt`: ezredmásodperces epoch timestamp); opcionális `role` (`parent` alapértelmezés \| `child` a második gyerek-eszközhöz) |
+| `/pair` | POST | Nyilvános (szülő párosítás) | `{ familyId, deviceId, token, role }` |
 | `/devices/me/apns-token` | PUT | Bármelyik eszköz | 204 No Content |
+| `/devices/me` | DELETE | Bármelyik eszköz | 204 No Content — leválasztás a családról |
 | `/test-pushes` | POST | Gyerek eszköz | `{ results: [{ deviceId, status }] }` — APNs teszt szülőknek |
 
 ## Helyi fejlesztés
@@ -19,7 +20,7 @@ Minimál Cloudflare Workers backend (TypeScript + Hono, D1) az iOS Vanda apphoz.
 ```bash
 npm install          # Függőségek telepítése
 npm run dev          # Wrangler dev szerver
-npm test             # Vitest, 26 teszt
+npm test             # Vitest, 33 teszt
 npm run check        # TypeScript statikus analízis (src)
 npm run check:test   # TypeScript statikus analízis (src + test)
 npm run deploy       # Cloudflare Workers deploy
