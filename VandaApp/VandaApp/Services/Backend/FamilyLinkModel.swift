@@ -118,9 +118,17 @@ final class FamilyLinkModel {
     }
 
     func unlink() async {
-        guard let credentials else { return }
-        isBusy = true
-        errorMessage = nil
+        // Ugyanazon a `claim`-en fut át, mint a másik négy művelet: ha épp
+        // egy issueCode/sendTestPush hívás van folyamatban (már túl a saját
+        // claim()-jén, a hálózatra várva), az unlink nem indulhat el
+        // mellette. Enélkül az unlink a saját `deleteDevice`-ával
+        // megelőzhetné a másik hívás lezárását, az pedig — visszatérve — egy
+        // már leválasztott modellbe írna vissza (`activeCode` vagy
+        // `testPushResults` nem nil, miközben a store üres, `link` mégis
+        // `.unlinked`). Elfoglaltság esetén — ugyanúgy, mint a másik négy
+        // metódusnál — az unlink csendben nem csinál semmit; a hívó
+        // felelőssége újra megpróbálni.
+        guard let credentials, claim() else { return }
         // A szerver-hívás hibája sem ragaszthatja ide az eszközt: a helyi
         // törlés akkor is megtörténik, hogy újra lehessen párosítani.
         do {

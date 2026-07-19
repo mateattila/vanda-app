@@ -27,11 +27,15 @@ private final class FakeBackend: FamilyLinking {
 
     private let createFamilyTracker = CallTracker()
     private let redeemTracker = CallTracker()
+    private let codeTracker = CallTracker()
     var createFamilyCallCount: Int {
         get async { await createFamilyTracker.count }
     }
     var redeemCallCount: Int {
         get async { await redeemTracker.count }
+    }
+    var codeCallCount: Int {
+        get async { await codeTracker.count }
     }
 
     func createFamily(deviceName: String) async throws -> DeviceCredentials {
@@ -51,7 +55,14 @@ private final class FakeBackend: FamilyLinking {
         return try redeemResult.get()
     }
     func createPairingCode(role: AppRole, token: String) async throws -> PairingCode {
-        try codeResult.get()
+        await codeTracker.record()
+        // Ugyanaz a szándékos felfüggesztés, mint a createFamily/redeem
+        // hívásoknál: kell ahhoz, hogy egy közben induló `unlink()` valóban
+        // átfedésben fusson, ne csak véletlen gyors visszatérés miatt tűnjön
+        // szekvenciálisnak.
+        await Task.yield()
+        await Task.yield()
+        return try codeResult.get()
     }
     func sendTestPush(token: String) async throws -> [TestPushResult] {
         try testPushResult.get()
@@ -225,6 +236,42 @@ struct FamilyLinkModelTests {
         #expect(backend.deleteCalls == 1)
         #expect(store.load() == nil)
         #expect(model.link == .unlinked)
+    }
+
+    @Test func unlinkWhileACodeIsBeingIssuedDoesNotCorruptTheModel() async {
+        // Ugyanaz a versenyhelyzet, mint az `overlappingCreateFamilyCalls...`
+        // teszteknél, de a két oldal itt `issueCode` és `unlink`: az
+        // issueCode elsőként indul, túljut a saját `claim()`-jén (isBusy már
+        // igaz), és a hálózatra vár (a FakeBackend szándékos yield-jei
+        // miatt). Az unlink csak ezután indul — ha nem menne át ugyanazon a
+        // `claim`-en, minden ellenőrzés nélkül végigfutna, és a `deleteDevice`
+        // (ami a FakeBackende-ban nem függeszt fel semmit) hamarabb érne
+        // véget, mint az issueCode hálózati hívása. Az unlink így letörölné
+        // az állapotot, majd az issueCode késve visszaíródó `activeCode`-ja
+        // egy már leválasztott modellbe kerülne — ellentmondó végállapotot
+        // hagyva maga után (`link == .unlinked`, de `activeCode != nil`).
+        let backend = FakeBackend()
+        backend.codeResult = .success(PairingCode(
+            code: "654321", expiresAt: Date(timeIntervalSince1970: 1), role: .child
+        ))
+        let store = InMemoryDeviceCredentialStore(childCredentials)
+        let model = makeModel(backend: backend, store: store)
+
+        async let issue: () = model.issueCode(role: .child)
+        async let unlinkAttempt: () = model.unlink()
+        _ = await (issue, unlinkAttempt)
+
+        // A helyes kimenet: az unlink a `claim`-en elvérzik (isBusy-t már az
+        // issueCode birtokolja), ezért csendben nem csinál semmit — nem éri
+        // el a hálózatot, és az issueCode zavartalanul lefut. A modell a
+        // verseny után is koherens: még mindig párosítva van, érvényes
+        // activeCode-dal, a store pedig érintetlen.
+        #expect(await backend.codeCallCount == 1)
+        #expect(backend.deleteCalls == 0)
+        #expect(model.link == .linked(childCredentials))
+        #expect(model.activeCode?.code == "654321")
+        #expect(store.load() == childCredentials)
+        #expect(model.isBusy == false)
     }
 
     @Test func testPushResultsAreKept() async {
