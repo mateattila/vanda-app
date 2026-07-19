@@ -13,7 +13,14 @@ import Security
 
 protocol DeviceCredentialStoring: AnyObject {
     func load() -> DeviceCredentials?
-    func save(_ credentials: DeviceCredentials)
+    /// `false`, ha a mentés nem sikerült (pl. a Keychain elutasította az
+    /// írást). A hívó (`FamilyLinkModel`) ezt köteles látható hibaként
+    /// kezelni, NEM sikeres párosításként: a bearer token, amit itt
+    /// mentenénk, egy EGYSZER-használatos párosító kódból lett kiváltva — ha
+    /// csendben elveszik, a kód se nem redeem-elhető újra, se az app nem
+    /// mutat valós állapotot.
+    @discardableResult
+    func save(_ credentials: DeviceCredentials) -> Bool
     func clear()
 }
 
@@ -50,14 +57,15 @@ final class KeychainDeviceCredentialStore: DeviceCredentialStoring {
         return try? JSONDecoder().decode(DeviceCredentials.self, from: data)
     }
 
-    func save(_ credentials: DeviceCredentials) {
-        guard let data = try? JSONEncoder().encode(credentials) else { return }
+    @discardableResult
+    func save(_ credentials: DeviceCredentials) -> Bool {
+        guard let data = try? JSONEncoder().encode(credentials) else { return false }
         clear()
         var attributes = baseQuery
         attributes[kSecValueData as String] = data
         // A push-kezelés háttérben is futhat, ezért AfterFirstUnlock.
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(attributes as CFDictionary, nil)
+        return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
     }
 
     func clear() {
@@ -72,6 +80,10 @@ final class InMemoryDeviceCredentialStore: DeviceCredentialStoring {
     init(_ initial: DeviceCredentials? = nil) { stored = initial }
 
     func load() -> DeviceCredentials? { stored }
-    func save(_ credentials: DeviceCredentials) { stored = credentials }
+    @discardableResult
+    func save(_ credentials: DeviceCredentials) -> Bool {
+        stored = credentials
+        return true
+    }
     func clear() { stored = nil }
 }

@@ -169,9 +169,28 @@ private let childCredentials = DeviceCredentials(
     familyId: "f1", deviceId: "d1", token: "tok", role: .child, deviceName: "Vanda telefonja"
 )
 
+private let parentCredentials = DeviceCredentials(
+    familyId: "f1", deviceId: "d2", token: "tok-parent", role: .parent, deviceName: "Anya telefonja"
+)
+
+/// A `save()` mindig hibát jelez — a Fix 3 tesztjéhez: egy sikertelen
+/// Keychain-írás (pl. tárhely-probléma) NEM néma, hanem látható hiba lesz a
+/// felhasználónak, és a modell nem áll párosítottnak.
+private final class FailingSaveDeviceCredentialStore: DeviceCredentialStoring {
+    private(set) var saveAttempts = 0
+
+    func load() -> DeviceCredentials? { nil }
+    @discardableResult
+    func save(_ credentials: DeviceCredentials) -> Bool {
+        saveAttempts += 1
+        return false
+    }
+    func clear() {}
+}
+
 @MainActor
 private func makeModel(
-    backend: FakeBackend, store: InMemoryDeviceCredentialStore = InMemoryDeviceCredentialStore()
+    backend: FakeBackend, store: DeviceCredentialStoring = InMemoryDeviceCredentialStore()
 ) -> FamilyLinkModel {
     FamilyLinkModel(
         client: backend,
@@ -216,6 +235,36 @@ struct FamilyLinkModelTests {
         #expect(store.load() == childCredentials)
         #expect(model.errorMessage == nil)
         #expect(model.isBusy == false)
+    }
+
+    @Test func creatingAFamilyWhenTheStoreFailsToSaveSurfacesAnError() async {
+        // Fix 3: a bearer token egy EGYSZER-használatos kódból (itt: a
+        // családteremtés implicit "kódjából") lett kiváltva — ha a Keychain
+        // csendben elutasítja az írást, a modell nem hazudhat párosítottat.
+        let backend = FakeBackend()
+        backend.createFamilyResult = .success(childCredentials)
+        let failingStore = FailingSaveDeviceCredentialStore()
+        let model = makeModel(backend: backend, store: failingStore)
+
+        await model.createFamily(deviceName: "Vanda telefonja")
+
+        #expect(model.link == .unlinked)
+        #expect(model.isLinked == false)
+        #expect(model.errorMessage != nil)
+        #expect(failingStore.saveAttempts == 1)
+        #expect(model.isBusy == false)
+    }
+
+    @Test func joiningWithCodeWhenTheStoreFailsToSaveSurfacesAnError() async {
+        let backend = FakeBackend()
+        backend.redeemResult = .success(childCredentials)
+        let failingStore = FailingSaveDeviceCredentialStore()
+        let model = makeModel(backend: backend, store: failingStore)
+
+        await model.joinWithCode("123456", deviceName: "Vanda telefonja")
+
+        #expect(model.link == .unlinked)
+        #expect(model.errorMessage != nil)
     }
 
     @Test func creatingAFamilyTwiceIsRefused() async {
@@ -299,6 +348,40 @@ struct FamilyLinkModelTests {
         await model.joinWithCode("123456", deviceName: "Anya telefonja")
 
         #expect(model.errorMessage == BackendError.codeExpiredOrUsed.friendlyMessage)
+    }
+
+    @Test func joiningAsParentWithAParentCodeStaysLinked() async {
+        let backend = FakeBackend()
+        backend.redeemResult = .success(parentCredentials)
+        let store = InMemoryDeviceCredentialStore()
+        let model = makeModel(backend: backend, store: store)
+
+        await model.joinAsParent(code: "111111", deviceName: "Anya telefonja")
+
+        #expect(model.link == .linked(parentCredentials))
+        #expect(model.errorMessage == nil)
+        #expect(backend.deleteCalls == 0)
+    }
+
+    @Test func joiningAsParentWithAChildCodeUnlinksAgainWithAKindMessage() async {
+        // Fix 1: ha a szülő véletlenül Vanda saját (gyerek) eszközének szánt
+        // kódját írja be, a backend `child` szerepű eszközt mintáz — ezt sem
+        // a teszt-push, sem a 4.3-as riasztás nem célozza. A modellnek
+        // AZONNAL vissza kell vonnia ezt a párosítást, nem szabad "össze
+        // vagytok kötve"-ként megmaradnia.
+        let backend = FakeBackend()
+        backend.redeemResult = .success(childCredentials)
+        let store = InMemoryDeviceCredentialStore()
+        let model = makeModel(backend: backend, store: store)
+
+        await model.joinAsParent(code: "222222", deviceName: "Anya telefonja")
+
+        #expect(model.link == .unlinked)
+        #expect(model.isLinked == false)
+        #expect(store.load() == nil)
+        #expect(backend.deleteCalls == 1)
+        #expect(model.errorMessage != nil)
+        #expect(model.isBusy == false)
     }
 
     @Test func issuingACodeRequiresBeingLinked() async {

@@ -134,6 +134,30 @@ final class FamilyLinkModel {
         }
     }
 
+    /// `joinWithCode` szülő módból hívva (lásd `ParentModeView`): a beváltott
+    /// kódnak `.parent` szerepet KELL adnia. Két, azonosan kinéző 6 jegyű kód
+    /// létezik — Vanda „Szülő meghívása” (parent) és „Másik eszközöm
+    /// hozzáadása” (child) kódja —, és ha a szülő véletlenül az utóbbit írja
+    /// be, a backend egy `child` szerepű eszközt mintáz. Sem a teszt-push,
+    /// sem a 4.3-as riasztás nem célozza a `child` eszközöket (mindkettő csak
+    /// `role == 'parent'`-et) — az eszköz csendben kimaradna, miközben a
+    /// képernyő azt hazudná, hogy össze van kötve. Ezért itt, a modellben (nem
+    /// a nézetben — ez a fázis korábbi code review-ja már kétszer visszaküldte
+    /// a nézetbe csempészett döntési logikát) azonnal visszavonjuk a hibás
+    /// párosítást, hogy a szülő újra tudja próbálni a helyes kóddal.
+    func joinAsParent(code: String, deviceName: String) async {
+        await joinWithCode(code, deviceName: deviceName)
+        guard let credentials, credentials.role != .parent else { return }
+        // Az `unlink()` ugyanazon a `claim()`-en fut át, mint minden más
+        // művelet, de itt ez nem ütközik: a fenti `joinWithCode` `run(_:)`-ja
+        // már lezárta a saját hívását, `isBusy`-t vissza is állította false-ra
+        // — a MainActor-izoláció miatt eddig a pontig más hívás nem
+        // szúrhatta közbe magát, tehát az `unlink()` `claim()`-je itt
+        // garantáltan átenged.
+        await unlink()
+        errorMessage = "Ez a kód Vanda saját eszközének szól, nem a szülőknek. Kérd el tőle a „Szülő meghívása” kódot, és azzal próbáld újra!"
+    }
+
     func issueCode(role: AppRole) async {
         // Nem a közös `run(_:)`-ot használjuk: a hiba itt NEM a megosztott
         // `errorMessage`-be megy (azt a főképernyő mutatja, a sheet MÖGÖTT —
@@ -209,7 +233,16 @@ final class FamilyLinkModel {
 
     /// Nem `store(_:)` a neve, hogy ne ütközzön a `store` property-vel.
     private func persist(_ credentials: DeviceCredentials) {
-        store.save(credentials)
+        // A `store.save` (Keychain) elméletileg elbukhat. Ha ezt csendben
+        // hagynánk, a modell "össze vagytok kötve"-t mutatna, miközben a
+        // bearer token — ami egy EGYSZER-használatos párosító kódból lett
+        // kiváltva — sehol sincs elmentve: újraindítás után a hitelesítés
+        // eltűnik, a kód pedig már nem váltható be újra. Ezért sikertelen
+        // mentés esetén NEM linkeljük a modellt, hanem látható hibát mutatunk.
+        guard store.save(credentials) else {
+            errorMessage = "Nem sikerült elmenteni a párosítást ezen a telefonon. Próbáljuk újra?"
+            return
+        }
         link = .linked(credentials)
     }
 

@@ -126,7 +126,13 @@ struct ParentModeView: View {
 
                 Button("Csatlakozás") {
                     Task {
-                        await model.joinWithCode(enteredCode, deviceName: deviceName)
+                        // `joinAsParent`, NEM `joinWithCode`: a beváltott
+                        // kódnak szülő-szerepet kell adnia, különben a modell
+                        // magától visszavonja a párosítást (lásd
+                        // `FamilyLinkModel.joinAsParent`) — enélkül egy
+                        // véletlenül begépelt gyerek-kód csendben kizárná ezt
+                        // a telefont a jövőbeli riasztásokból.
+                        await model.joinAsParent(code: enteredCode, deviceName: deviceName)
                         // Párosítás után azonnal kérjük az engedélyt — ez a
                         // legjobb pillanat, mert itt derül ki, mire kell. A
                         // push-token feltöltését a `FamilyLinkModel` már
