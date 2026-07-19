@@ -28,32 +28,71 @@ private actor CallTracker {
 /// `isBusy`-ja garantáltan igaz. Az `enter()` a `release()`-ig blokkol, hogy
 /// a teszt a második hívás lezajlása UTÁN, kontrollált sorrendben engedhesse
 /// tovább az elsőt.
+///
+/// Mindkét várakozó metódus KORLÁTOZOTT ideig vár. Ha az idempotencia-őr
+/// (`FamilyLinkModel.claim()`) elromlik, a MÁSODIK hívás is eljut a
+/// hálózatig — vagyis ide, a kapuig —, miközben a teszt épp ennek a
+/// hívásnak a visszatérésére vár. A `release()` viszont csak a teszt
+/// KÖVETKEZŐ sorában történne, azt pedig épp ez a blokkolt hívás akadályozza
+/// meg: időkorlát nélkül semmi sem oldaná fel ezt soha, és a teljes suite
+/// órákra lefagyna ahelyett, hogy hibát jelezne. Lejáratkor mindkét metódus
+/// egy, a konkurrencia-őrre mutató, névvel ellátott hibát dob — nem csak
+/// annyit mond, hogy „timed out”.
 private actor Gate {
     private var entered = false
     private var released = false
-    private var entryContinuation: CheckedContinuation<Void, Never>?
-    private var releaseContinuation: CheckedContinuation<Void, Never>?
 
-    /// A gated hívás oldaláról: jelzi a belépést, majd vár a felszabadításra.
-    func enter() async {
+    private static let timeout: Duration = .seconds(5)
+
+    /// A poll-intervallum: elég rövid ahhoz, hogy a rendes (nem szabotált)
+    /// tesztekben ne legyen érzékelhető késleltetés, elég hosszú ahhoz, hogy
+    /// ne terhelje feleslegesen a futtatót. (Continuation helyett szándékosan
+    /// pollozunk: a szabotált forgatókönyvben KÉT hívás is egyszerre léphet
+    /// be ugyanabba a kapuba, egyetlen tárolt continuation pedig felülíródna
+    /// — elveszett, sose-resume-olt continuationt eredményezve.)
+    private static let pollInterval: Duration = .milliseconds(10)
+
+    struct StuckConcurrencyGuard: Error, CustomStringConvertible {
+        let detail: String
+        var description: String {
+            "A konkurrencia-teszt kapuja \(Gate.timeout) alatt nem oldódott fel: \(detail). "
+                + "Ez valószínűleg azt jelenti, hogy a FamilyLinkModel idempotencia-őre "
+                + "(claim()) elromlott, és egy hívás, aminek el kellett volna véreznie az "
+                + "őrön, mégis eljutott a (szimulált) hálózatig."
+        }
+    }
+
+    /// A gated hívás oldaláról: jelzi a belépést, majd (korlátozott ideig)
+    /// vár a felszabadításra.
+    func enter() async throws {
         entered = true
-        entryContinuation?.resume()
-        entryContinuation = nil
         if released { return }
-        await withCheckedContinuation { releaseContinuation = $0 }
+        try await waitUntil({ self.released }, detail: "enter() nem kapott release()-t")
     }
 
-    /// A teszt oldaláról: megvárja, amíg a gated hívás belép.
-    func waitForEntry() async {
-        if entered { return }
-        await withCheckedContinuation { entryContinuation = $0 }
+    /// A teszt oldaláról: (korlátozott ideig) megvárja, amíg a gated hívás
+    /// belép.
+    func waitForEntry() async throws {
+        try await waitUntil(
+            { self.entered },
+            detail: "a gated hívás sose lépett be — a claim() őrnek azonnal el kellett volna utasítania"
+        )
     }
 
-    /// A teszt oldaláról: elengedi a bent (vagy majd bent) várakozó felet.
+    /// A teszt oldaláról: elengedi a bent (vagy majd bent) várakozó felet/feleket.
     func release() {
         released = true
-        releaseContinuation?.resume()
-        releaseContinuation = nil
+    }
+
+    private func waitUntil(_ condition: () -> Bool, detail: String) async throws {
+        if condition() { return }
+        let deadline = ContinuousClock.now + Self.timeout
+        while !condition() {
+            guard ContinuousClock.now < deadline else {
+                throw StuckConcurrencyGuard(detail: detail)
+            }
+            try await Task.sleep(for: Self.pollInterval)
+        }
     }
 }
 
@@ -87,7 +126,7 @@ private final class FakeBackend: FamilyLinking {
     func createFamily(deviceName: String) async throws -> DeviceCredentials {
         await createFamilyTracker.record()
         if let createFamilyGate {
-            await createFamilyGate.enter()
+            try await createFamilyGate.enter()
         } else {
             // Szándékosan felfüggesztjük, hogy a hívás ne térjen vissza
             // azonnal — ez a nem-versenyhelyzet-teszteknek elég valósághű
@@ -100,7 +139,7 @@ private final class FakeBackend: FamilyLinking {
     func redeemPairingCode(_ code: String, deviceName: String) async throws -> DeviceCredentials {
         await redeemTracker.record()
         if let redeemGate {
-            await redeemGate.enter()
+            try await redeemGate.enter()
         } else {
             await Task.yield()
             await Task.yield()
@@ -110,7 +149,7 @@ private final class FakeBackend: FamilyLinking {
     func createPairingCode(role: AppRole, token: String) async throws -> PairingCode {
         await codeTracker.record()
         if let codeGate {
-            await codeGate.enter()
+            try await codeGate.enter()
         } else {
             await Task.yield()
             await Task.yield()
@@ -190,7 +229,7 @@ struct FamilyLinkModelTests {
         #expect(store.load()?.deviceName == "Vanda telefonja")
     }
 
-    @Test func overlappingCreateFamilyCallsOnlyHitTheNetworkOnce() async {
+    @Test func overlappingCreateFamilyCallsOnlyHitTheNetworkOnce() async throws {
         // Két, egymást átfedő createFamily hívás (pl. dupla koppintás) közül
         // csak az egyik juthat el a hálózatig — a másiknak az őrnek le kell
         // állítania, mielőtt a backendet elérné. A sorrendet a `Gate`
@@ -206,7 +245,7 @@ struct FamilyLinkModelTests {
         let model = makeModel(backend: backend, store: store)
 
         async let first: () = model.createFamily(deviceName: "Első próba")
-        await gate.waitForEntry()
+        try await gate.waitForEntry()
 
         // Ezen a ponton az első hívás `claim()`-je garantáltan lefutott —
         // a második hívásnak tehát azonnal, hálózat nélkül el kell vérzenie
@@ -221,7 +260,7 @@ struct FamilyLinkModelTests {
         #expect(model.isBusy == false)
     }
 
-    @Test func overlappingJoinWithCodeCallsOnlyHitTheNetworkOnce() async {
+    @Test func overlappingJoinWithCodeCallsOnlyHitTheNetworkOnce() async throws {
         let backend = FakeBackend()
         backend.redeemResult = .success(childCredentials)
         let gate = Gate()
@@ -230,7 +269,7 @@ struct FamilyLinkModelTests {
         let model = makeModel(backend: backend, store: store)
 
         async let first: () = model.joinWithCode("111111", deviceName: "Első próba")
-        await gate.waitForEntry()
+        try await gate.waitForEntry()
 
         await model.joinWithCode("222222", deviceName: "Második próba")
 
@@ -326,7 +365,7 @@ struct FamilyLinkModelTests {
         #expect(model.link == .unlinked)
     }
 
-    @Test func unlinkWhileACodeIsBeingIssuedDoesNotCorruptTheModel() async {
+    @Test func unlinkWhileACodeIsBeingIssuedDoesNotCorruptTheModel() async throws {
         // Ugyanaz a versenyhelyzet, mint az `overlappingCreateFamilyCalls...`
         // teszteknél, de a két oldal itt `issueCode` és `unlink`: az
         // issueCode elsőként indul, a `Gate` segítségével bizonyítottan
@@ -348,7 +387,7 @@ struct FamilyLinkModelTests {
         let model = makeModel(backend: backend, store: store)
 
         async let issue: () = model.issueCode(role: .child)
-        await gate.waitForEntry()
+        try await gate.waitForEntry()
 
         // Ezen a ponton az issueCode `claim()`-je garantáltan lefutott —
         // az unlinknek tehát azonnal, hálózat nélkül el kell vérzenie.
