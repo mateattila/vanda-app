@@ -179,6 +179,28 @@ struct FamilySettingsView: View {
                 Task { await model.issueCode(role: .child) }
             }
 
+            actionRow(symbol: "bell.badge", title: "Teszt-üzenet küldése") {
+                Task { await model.sendTestPush() }
+            }
+
+            if let results = model.testPushResults {
+                VStack(spacing: 6) {
+                    Text(TestPushSummary.text(for: results))
+                        .font(.vandaBody())
+                        .foregroundStyle(results.contains(where: { !$0.delivered })
+                                         ? Color.zoneOrangeStrong : Color.ink)
+                        .multilineTextAlignment(.center)
+                    if results.contains(where: { !$0.delivered }) {
+                        Text("Ha nem jött meg, ellenőrizzétek, hogy a szülő telefonján be van-e kapcsolva az értesítés.")
+                            .font(.vandaCaption())
+                            .foregroundStyle(Color.inkMuted)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .vandaCard(surface: cardSurface)
+            }
+
             Button("Összeköttetés bontása") { showUnlinkConfirm = true }
                 .font(.vandaBodyStrong(13))
                 .foregroundStyle(Color.inkMuted)
