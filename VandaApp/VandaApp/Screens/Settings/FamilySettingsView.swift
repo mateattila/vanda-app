@@ -184,13 +184,17 @@ struct FamilySettingsView: View {
             }
 
             if let results = model.testPushResults {
+                // `model.failedCount` (tesztelve: FamilyLinkModelTests) a
+                // forrás igazság arra, hogy volt-e kudarc — nem duplikáljuk
+                // a `results`-on újraszámolva, hogy a nézetben ne éljen saját,
+                // teszteletlen döntési logika.
+                let hasFailures = model.failedCount > 0
                 VStack(spacing: 6) {
                     Text(TestPushSummary.text(for: results))
                         .font(.vandaBody())
-                        .foregroundStyle(results.contains(where: { !$0.delivered })
-                                         ? Color.zoneOrangeStrong : Color.ink)
+                        .foregroundStyle(hasFailures ? Color.zoneOrangeStrong : Color.ink)
                         .multilineTextAlignment(.center)
-                    if results.contains(where: { !$0.delivered }) {
+                    if hasFailures {
                         Text("Ha nem jött meg, ellenőrizzétek, hogy a szülő telefonján be van-e kapcsolva az értesítés.")
                             .font(.vandaCaption())
                             .foregroundStyle(Color.inkMuted)
