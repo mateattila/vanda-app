@@ -11,6 +11,8 @@ import UIKit
 
 @main
 struct VandaAppApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     init() {
         #if DEBUG
         // A custom fontok (Resources/Fonts + Info.plist UIAppFonts) regisztrációjának
