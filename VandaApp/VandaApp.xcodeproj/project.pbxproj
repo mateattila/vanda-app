@@ -17,6 +17,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		EB4B2B0130000001000000A1 /* Backend.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Backend.xcconfig; sourceTree = "<group>"; };
 		EB9ADB8D2FFD1717006B4D10 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 		EB9ADC102FFD6A32006B4D10 /* VandaAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VandaAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EBC2D3062FFC27DA00A60AB5 /* VandaApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VandaApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -77,6 +78,7 @@
 		EBC2D2FD2FFC27DA00A60AB5 = {
 			isa = PBXGroup;
 			children = (
+				EB4B2B0130000001000000A1 /* Backend.xcconfig */,
 				EBC2D3082FFC27DA00A60AB5 /* VandaApp */,
 				EB9ADC112FFD6A32006B4D10 /* VandaAppTests */,
 				EB9ADB8C2FFD1717006B4D10 /* Frameworks */,
@@ -269,6 +271,7 @@
 		};
 		EBC2D30F2FFC27DB00A60AB5 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB4B2B0130000001000000A1 /* Backend.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -332,6 +335,7 @@
 		};
 		EBC2D3102FFC27DB00A60AB5 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB4B2B0130000001000000A1 /* Backend.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;

@@ -10,7 +10,7 @@
 import SwiftUI
 import SwiftData
 
-enum AppRole: String {
+enum AppRole: String, Codable {
     case child   // Vanda telefonja/iPadje: minden funkció
     case parent  // anya/apa telefonja: riasztások fogadása, párosítás (4. fázis)
 }

@@ -1,0 +1,7 @@
+// A Vanda-backend (Cloudflare Worker) hosztja — SÉMA NÉLKÜL.
+// Az xcconfig a "//"-t kommentkezdetnek tekinti, ezért teljes URL-t nem lehet
+// itt épen tárolni; a "https://" előtagot a BackendConfig teszi hozzá.
+//
+// A deploy után (backend/README.md ellenőrzőlista) írd ide a workers.dev hosztot,
+// pl.: BACKEND_HOST = vanda.attis.workers.dev
+BACKEND_HOST = vanda-backend.example.workers.dev
