@@ -17,6 +17,46 @@ private actor CallTracker {
     func record() { count += 1 }
 }
 
+/// Egylövetű találkozó-pont (rendezvous) a párhuzamossági tesztekhez.
+///
+/// A cél: a teszt maga kényszerítse ki a két hívás sorrendjét, ne a
+/// (nyelv által nem garantált) ütemezőre bízza. A `FakeBackend` gated
+/// metódusa `enter()`-t hív, amint belépett — ez szinkron `claim()` UTÁN
+/// történik, hiszen a hívó `FamilyLinkModel`-metódusban a `claim()` az
+/// egyetlen sor az első `await` előtt. A teszt `waitForEntry()`-vel
+/// megvárja ezt, és csak utána indítja a második hívást — ekkorra az első
+/// `isBusy`-ja garantáltan igaz. Az `enter()` a `release()`-ig blokkol, hogy
+/// a teszt a második hívás lezajlása UTÁN, kontrollált sorrendben engedhesse
+/// tovább az elsőt.
+private actor Gate {
+    private var entered = false
+    private var released = false
+    private var entryContinuation: CheckedContinuation<Void, Never>?
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    /// A gated hívás oldaláról: jelzi a belépést, majd vár a felszabadításra.
+    func enter() async {
+        entered = true
+        entryContinuation?.resume()
+        entryContinuation = nil
+        if released { return }
+        await withCheckedContinuation { releaseContinuation = $0 }
+    }
+
+    /// A teszt oldaláról: megvárja, amíg a gated hívás belép.
+    func waitForEntry() async {
+        if entered { return }
+        await withCheckedContinuation { entryContinuation = $0 }
+    }
+
+    /// A teszt oldaláról: elengedi a bent (vagy majd bent) várakozó felet.
+    func release() {
+        released = true
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+}
+
 private final class FakeBackend: FamilyLinking {
     var createFamilyResult: Result<DeviceCredentials, BackendError> = .failure(.notConfigured)
     var redeemResult: Result<DeviceCredentials, BackendError> = .failure(.unknownCode)
@@ -24,6 +64,12 @@ private final class FakeBackend: FamilyLinking {
     var testPushResult: Result<[TestPushResult], BackendError> = .success([])
     var deleteResult: Result<Void, BackendError> = .success(())
     var deleteCalls = 0
+
+    /// Ha egy teszt beállítja, a megfelelő metódus ezen a kapun áll meg a
+    /// hálózati hívás szimulálása helyett — lásd `Gate`.
+    var createFamilyGate: Gate?
+    var redeemGate: Gate?
+    var codeGate: Gate?
 
     private let createFamilyTracker = CallTracker()
     private let redeemTracker = CallTracker()
@@ -40,28 +86,35 @@ private final class FakeBackend: FamilyLinking {
 
     func createFamily(deviceName: String) async throws -> DeviceCredentials {
         await createFamilyTracker.record()
-        // Szándékosan felfüggesztjük, hogy egy második, átfedő hívás valóban
-        // el tudjon indulni, mielőtt ez itt visszatérne — enélkül a teszt nem
-        // a valódi versenyhelyzetet mérné, csak a gyors visszatérés miatti
-        // véletlen sorrendet.
-        await Task.yield()
-        await Task.yield()
+        if let createFamilyGate {
+            await createFamilyGate.enter()
+        } else {
+            // Szándékosan felfüggesztjük, hogy a hívás ne térjen vissza
+            // azonnal — ez a nem-versenyhelyzet-teszteknek elég valósághű
+            // hálózati késleltetést szimulál.
+            await Task.yield()
+            await Task.yield()
+        }
         return try createFamilyResult.get()
     }
     func redeemPairingCode(_ code: String, deviceName: String) async throws -> DeviceCredentials {
         await redeemTracker.record()
-        await Task.yield()
-        await Task.yield()
+        if let redeemGate {
+            await redeemGate.enter()
+        } else {
+            await Task.yield()
+            await Task.yield()
+        }
         return try redeemResult.get()
     }
     func createPairingCode(role: AppRole, token: String) async throws -> PairingCode {
         await codeTracker.record()
-        // Ugyanaz a szándékos felfüggesztés, mint a createFamily/redeem
-        // hívásoknál: kell ahhoz, hogy egy közben induló `unlink()` valóban
-        // átfedésben fusson, ne csak véletlen gyors visszatérés miatt tűnjön
-        // szekvenciálisnak.
-        await Task.yield()
-        await Task.yield()
+        if let codeGate {
+            await codeGate.enter()
+        } else {
+            await Task.yield()
+            await Task.yield()
+        }
         return try codeResult.get()
     }
     func sendTestPush(token: String) async throws -> [TestPushResult] {
@@ -140,15 +193,28 @@ struct FamilyLinkModelTests {
     @Test func overlappingCreateFamilyCallsOnlyHitTheNetworkOnce() async {
         // Két, egymást átfedő createFamily hívás (pl. dupla koppintás) közül
         // csak az egyik juthat el a hálózatig — a másiknak az őrnek le kell
-        // állítania, mielőtt a backendet elérné.
+        // állítania, mielőtt a backendet elérné. A sorrendet a `Gate`
+        // kényszeríti ki: a második hívás csak azután indul, hogy az első
+        // bizonyítottan túljutott a saját, szinkron `claim()`-jén (vagyis
+        // `isBusy` már igaz) — ez nem a (nyelv által nem garantált)
+        // ütemezési sorrendre bízza a tesztet.
         let backend = FakeBackend()
         backend.createFamilyResult = .success(childCredentials)
+        let gate = Gate()
+        backend.createFamilyGate = gate
         let store = InMemoryDeviceCredentialStore()
         let model = makeModel(backend: backend, store: store)
 
         async let first: () = model.createFamily(deviceName: "Első próba")
-        async let second: () = model.createFamily(deviceName: "Második próba")
-        _ = await (first, second)
+        await gate.waitForEntry()
+
+        // Ezen a ponton az első hívás `claim()`-je garantáltan lefutott —
+        // a második hívásnak tehát azonnal, hálózat nélkül el kell vérzenie
+        // az őrön.
+        await model.createFamily(deviceName: "Második próba")
+
+        await gate.release()
+        _ = await first
 
         #expect(await backend.createFamilyCallCount == 1)
         #expect(store.load() != nil)
@@ -158,12 +224,18 @@ struct FamilyLinkModelTests {
     @Test func overlappingJoinWithCodeCallsOnlyHitTheNetworkOnce() async {
         let backend = FakeBackend()
         backend.redeemResult = .success(childCredentials)
+        let gate = Gate()
+        backend.redeemGate = gate
         let store = InMemoryDeviceCredentialStore()
         let model = makeModel(backend: backend, store: store)
 
         async let first: () = model.joinWithCode("111111", deviceName: "Első próba")
-        async let second: () = model.joinWithCode("222222", deviceName: "Második próba")
-        _ = await (first, second)
+        await gate.waitForEntry()
+
+        await model.joinWithCode("222222", deviceName: "Második próba")
+
+        await gate.release()
+        _ = await first
 
         #expect(await backend.redeemCallCount == 1)
         #expect(store.load() != nil)
@@ -199,7 +271,7 @@ struct FamilyLinkModelTests {
 
         await model.issueCode(role: .parent)
 
-        #expect(model.activeCode == nil)
+        #expect(model.codeState == .idle)
     }
 
     @Test func issuingACodeWhenLinkedPublishesIt() async {
@@ -211,8 +283,24 @@ struct FamilyLinkModelTests {
 
         await model.issueCode(role: .child)
 
-        #expect(model.activeCode?.code == "123456")
-        #expect(model.activeCode?.role == .child)
+        #expect(model.codeState == .ready(PairingCode(
+            code: "123456", expiresAt: Date(timeIntervalSince1970: 1), role: .child
+        )))
+    }
+
+    @Test func issuingACodeThatFailsRecordsTheFailureAgainstItsRole() async {
+        // A hibát a `codeState`-nek kell hordoznia, szerephez kötve — ez az,
+        // amit a sheet ténylegesen meg tud jeleníteni (lásd finding 1: a
+        // korábbi megoldás a megosztott `errorMessage`-be írt, ami a nyitott
+        // sheet MÖGÖTT, láthatatlanul jelent meg).
+        let backend = FakeBackend()
+        backend.codeResult = .failure(.notConfigured)
+        let model = makeModel(backend: backend, store: InMemoryDeviceCredentialStore(childCredentials))
+
+        await model.issueCode(role: .parent)
+
+        #expect(model.codeState == .failed(role: .parent, message: BackendError.notConfigured.friendlyMessage))
+        #expect(model.isBusy == false)
     }
 
     @Test func renamingKeepsTheRestOfTheCredentials() async {
@@ -241,35 +329,45 @@ struct FamilyLinkModelTests {
     @Test func unlinkWhileACodeIsBeingIssuedDoesNotCorruptTheModel() async {
         // Ugyanaz a versenyhelyzet, mint az `overlappingCreateFamilyCalls...`
         // teszteknél, de a két oldal itt `issueCode` és `unlink`: az
-        // issueCode elsőként indul, túljut a saját `claim()`-jén (isBusy már
-        // igaz), és a hálózatra vár (a FakeBackend szándékos yield-jei
-        // miatt). Az unlink csak ezután indul — ha nem menne át ugyanazon a
-        // `claim`-en, minden ellenőrzés nélkül végigfutna, és a `deleteDevice`
-        // (ami a FakeBackende-ban nem függeszt fel semmit) hamarabb érne
-        // véget, mint az issueCode hálózati hívása. Az unlink így letörölné
-        // az állapotot, majd az issueCode késve visszaíródó `activeCode`-ja
-        // egy már leválasztott modellbe kerülne — ellentmondó végállapotot
-        // hagyva maga után (`link == .unlinked`, de `activeCode != nil`).
+        // issueCode elsőként indul, a `Gate` segítségével bizonyítottan
+        // túljut a saját `claim()`-jén (isBusy már igaz), mielőtt az unlink
+        // egyáltalán elindulna. Ha az unlink nem menne át ugyanazon a
+        // `claim`-en, minden ellenőrzés nélkül végigfutna, és a
+        // `deleteDevice` letörölné az állapotot, miközben az issueCode
+        // hálózati hívása még folyamatban van — az issueCode késve
+        // visszaíródó `codeState`-je ekkor egy már leválasztott modellbe
+        // kerülne, ellentmondó végállapotot hagyva maga után (`link ==
+        // .unlinked`, de `codeState` mégis kész kódot tartalmaz).
         let backend = FakeBackend()
         backend.codeResult = .success(PairingCode(
             code: "654321", expiresAt: Date(timeIntervalSince1970: 1), role: .child
         ))
+        let gate = Gate()
+        backend.codeGate = gate
         let store = InMemoryDeviceCredentialStore(childCredentials)
         let model = makeModel(backend: backend, store: store)
 
         async let issue: () = model.issueCode(role: .child)
-        async let unlinkAttempt: () = model.unlink()
-        _ = await (issue, unlinkAttempt)
+        await gate.waitForEntry()
+
+        // Ezen a ponton az issueCode `claim()`-je garantáltan lefutott —
+        // az unlinknek tehát azonnal, hálózat nélkül el kell vérzenie.
+        await model.unlink()
+
+        await gate.release()
+        _ = await issue
 
         // A helyes kimenet: az unlink a `claim`-en elvérzik (isBusy-t már az
         // issueCode birtokolja), ezért csendben nem csinál semmit — nem éri
         // el a hálózatot, és az issueCode zavartalanul lefut. A modell a
         // verseny után is koherens: még mindig párosítva van, érvényes
-        // activeCode-dal, a store pedig érintetlen.
+        // kóddal a `codeState`-ben, a store pedig érintetlen.
         #expect(await backend.codeCallCount == 1)
         #expect(backend.deleteCalls == 0)
         #expect(model.link == .linked(childCredentials))
-        #expect(model.activeCode?.code == "654321")
+        #expect(model.codeState == .ready(PairingCode(
+            code: "654321", expiresAt: Date(timeIntervalSince1970: 1), role: .child
+        )))
         #expect(store.load() == childCredentials)
         #expect(model.isBusy == false)
     }

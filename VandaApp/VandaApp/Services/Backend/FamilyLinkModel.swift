@@ -26,6 +26,18 @@ enum FamilyLink: Equatable {
     case linked(DeviceCredentials)
 }
 
+/// A párosító kód sheet-jének teljes állapota: melyik szerephez kértünk
+/// kódot, és hol tart a kérés. Ez a modell tudja, nem a nézet — a nézet
+/// csak a `role`-lal szűr rá arra, ami épp az ő sheet-jét érinti, hogy egy
+/// korábban, MÁSIK szerephez kiadott (vagy elhalt) kód sose villanhasson fel
+/// tévesen (lásd finding 1: „szülő meghívása" nem mutathat gyerek-kódot).
+enum PairingCodeState: Equatable {
+    case idle
+    case loading(role: AppRole)
+    case ready(PairingCode)
+    case failed(role: AppRole, message: String)
+}
+
 /// MainActor-izolált (explicit, nem a projekt alapértelmezésére támaszkodva):
 /// az idempotencia-őrnek (lásd `claim(requireUnlinked:)`) szinkron
 /// ellenőrzés-és-állításra van szüksége, amit csak akkor garantál a nyelv,
@@ -39,7 +51,7 @@ final class FamilyLinkModel {
     private(set) var link: FamilyLink
     private(set) var isBusy = false
     var errorMessage: String?
-    private(set) var activeCode: PairingCode?
+    private(set) var codeState: PairingCodeState = .idle
     private(set) var testPushResults: [TestPushResult]?
 
     private let client: FamilyLinking
@@ -92,13 +104,26 @@ final class FamilyLinkModel {
     }
 
     func issueCode(role: AppRole) async {
+        // Nem a közös `run(_:)`-ot használjuk: a hiba itt NEM a megosztott
+        // `errorMessage`-be megy (azt a főképernyő mutatja, a sheet MÖGÖTT —
+        // pont ez volt a hiba, amit a code review kifogásolt), hanem a
+        // `codeState`-be, szerephez kötve, hogy a sheet, ami épp látszik,
+        // közvetlenül meg tudja jeleníteni. A `codeState` emellett `.loading`
+        // állapotba kerül MÁR a hálózati hívás előtt (nem `nil`-re állítva,
+        // mint korábban) — a nézet ebből épít folyamatosan látható, sose üres
+        // sheet-tartalmat.
         guard let credentials, claim() else { return }
-        activeCode = nil
-        await run {
-            self.activeCode = try await self.client.createPairingCode(
-                role: role, token: credentials.token
-            )
+        codeState = .loading(role: role)
+        do {
+            let code = try await client.createPairingCode(role: role, token: credentials.token)
+            codeState = .ready(code)
+        } catch let error as BackendError {
+            codeState = .failed(role: role, message: error.friendlyMessage)
+        } catch {
+            codeState = .failed(role: role, message: BackendError.transport(error.localizedDescription).friendlyMessage)
         }
+        isBusy = false
+        await registrar.flush()
     }
 
     func rename(to newName: String) async {
@@ -123,8 +148,8 @@ final class FamilyLinkModel {
         // claim()-jén, a hálózatra várva), az unlink nem indulhat el
         // mellette. Enélkül az unlink a saját `deleteDevice`-ával
         // megelőzhetné a másik hívás lezárását, az pedig — visszatérve — egy
-        // már leválasztott modellbe írna vissza (`activeCode` vagy
-        // `testPushResults` nem nil, miközben a store üres, `link` mégis
+        // már leválasztott modellbe írna vissza (`codeState` vagy
+        // `testPushResults` nem üres, miközben a store üres, `link` mégis
         // `.unlinked`). Elfoglaltság esetén — ugyanúgy, mint a másik négy
         // metódusnál — az unlink csendben nem csinál semmit; a hívó
         // felelőssége újra megpróbálni.
@@ -144,7 +169,7 @@ final class FamilyLinkModel {
         self.store.clear()
         registrar.forgetUploadState()
         link = .unlinked
-        activeCode = nil
+        codeState = .idle
         testPushResults = nil
         isBusy = false
     }

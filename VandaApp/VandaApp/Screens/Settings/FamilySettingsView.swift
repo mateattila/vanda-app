@@ -16,6 +16,11 @@ struct FamilySettingsView: View {
     @State private var enteredCode = ""
     @State private var editedName = ""
     @State private var showCodeSheet = false
+    /// A sheet szerepe: a gomb-koppintáskor, MÉG a hálózati hívás előtt
+    /// állítjuk be, hogy a sheet azonnal, szinkron módon megjelenhessen —
+    /// enélkül a `Task { await model.issueCode(...) }` lefutása előtti
+    /// pillanatban a sheet-nek nem lenne mit mutatnia (lásd finding 1).
+    @State private var codeRole: AppRole = .child
     @State private var showUnlinkConfirm = false
 
     private var theme: ThemeSettings? { themeSettings.first }
@@ -67,10 +72,11 @@ struct FamilySettingsView: View {
         .navigationTitle("Család")
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showCodeSheet) {
-            if let code = model.activeCode {
-                PairingCodeSheet(code: code, isBusy: model.isBusy) {
-                    Task { await model.issueCode(role: code.role) }
-                }
+            // Feltétel nélkül megjelenítjük — a `PairingCodeSheet` maga dönti
+            // el a `codeRole`-lal szűrve, hogy kódot, hibát vagy betöltést
+            // mutat, így sose renderelődik `EmptyView` (lásd finding 1).
+            PairingCodeSheet(role: codeRole, state: model.codeState) {
+                Task { await model.issueCode(role: codeRole) }
             }
         }
         .confirmationDialog(
@@ -159,17 +165,18 @@ struct FamilySettingsView: View {
             .vandaCard(surface: cardSurface)
 
             actionRow(symbol: "person.badge.plus", title: "Szülő meghívása") {
-                Task {
-                    await model.issueCode(role: .parent)
-                    showCodeSheet = model.activeCode != nil
-                }
+                // A sheet-et AZONNAL, szinkron módon nyitjuk, mielőtt a
+                // hálózati hívás elindulna — így a felhasználó sose lát üres
+                // sheet-et a kérés ideje alatt (lásd finding 1).
+                codeRole = .parent
+                showCodeSheet = true
+                Task { await model.issueCode(role: .parent) }
             }
 
             actionRow(symbol: "ipad.and.iphone", title: "Másik eszközöm hozzáadása") {
-                Task {
-                    await model.issueCode(role: .child)
-                    showCodeSheet = model.activeCode != nil
-                }
+                codeRole = .child
+                showCodeSheet = true
+                Task { await model.issueCode(role: .child) }
             }
 
             Button("Összeköttetés bontása") { showUnlinkConfirm = true }
