@@ -55,6 +55,17 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
 
+                    NavigationLink {
+                        FamilySettingsView()
+                    } label: {
+                        settingsRow(
+                            symbol: "person.2.badge.key.fill",
+                            title: "Család",
+                            subtitle: "Párosítás anyáékkal és a másik eszközöddel"
+                        )
+                    }
+                    .buttonStyle(.plain)
+
                     settingsRow(
                         symbol: "person.2.fill",
                         title: "Megosztás a szülőkkel",
