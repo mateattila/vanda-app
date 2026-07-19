@@ -26,6 +26,13 @@ enum FamilyLink: Equatable {
     case linked(DeviceCredentials)
 }
 
+/// MainActor-izolált (explicit, nem a projekt alapértelmezésére támaszkodva):
+/// az idempotencia-őrnek (lásd `claim(requireUnlinked:)`) szinkron
+/// ellenőrzés-és-állításra van szüksége, amit csak akkor garantál a nyelv,
+/// ha egyetlen végrehajtási szál futtathatja a metódusait egyszerre. Mivel
+/// ez egy `@Observable` modell, ami SwiftUI-nézetekből fog futni, ez amúgy
+/// is a természetes hely.
+@MainActor
 @Observable
 final class FamilyLinkModel {
 
@@ -62,9 +69,14 @@ final class FamilyLinkModel {
     // MARK: - Műveletek
 
     func createFamily(deviceName: String) async {
-        // Idempotencia-őr: mentett hitelesítés mellett soha ne keletkezzen
-        // második, árva család (dupla koppintás, timeout utáni újrapróbálás).
-        guard !isLinked else { return }
+        // Idempotencia-őr: a `claim` szinkron, még az első `await` előtt fut,
+        // hogy két egymást átfedő hívás (dupla koppintás, timeout utáni
+        // újrapróbálás) közül csak az egyik juthasson el a hálózatig — így
+        // sosem keletkezhet második, árva család a szerveren. Egy `guard
+        // !isLinked` önmagában NEM elég: az csak a hálózati kör lezárása
+        // (`persist`) UTÁN válik igazzá, tehát két, még folyamatban lévő
+        // hívás mindkettője átjutna rajta.
+        guard claim(requireUnlinked: true) else { return }
         await run {
             let credentials = try await self.client.createFamily(deviceName: deviceName)
             self.persist(credentials)
@@ -72,7 +84,7 @@ final class FamilyLinkModel {
     }
 
     func joinWithCode(_ code: String, deviceName: String) async {
-        guard !isLinked else { return }
+        guard claim(requireUnlinked: true) else { return }
         await run {
             let credentials = try await self.client.redeemPairingCode(code, deviceName: deviceName)
             self.persist(credentials)
@@ -80,7 +92,7 @@ final class FamilyLinkModel {
     }
 
     func issueCode(role: AppRole) async {
-        guard let credentials else { return }
+        guard let credentials, claim() else { return }
         activeCode = nil
         await run {
             self.activeCode = try await self.client.createPairingCode(
@@ -98,7 +110,7 @@ final class FamilyLinkModel {
     }
 
     func sendTestPush() async {
-        guard let credentials else { return }
+        guard let credentials, claim() else { return }
         testPushResults = nil
         await run {
             self.testPushResults = try await self.client.sendTestPush(token: credentials.token)
@@ -113,8 +125,13 @@ final class FamilyLinkModel {
         // törlés akkor is megtörténik, hogy újra lehessen párosítani.
         do {
             try await client.deleteDevice(token: credentials.token)
+        } catch let error as BackendError {
+            errorMessage = error.friendlyMessage
         } catch {
-            errorMessage = (error as? BackendError)?.friendlyMessage
+            // Ugyanaz a két ágú catch, mint `run(_:)`-ban: egy jövőbeli,
+            // nem-BackendError-t dobó FamilyLinking-implementáció se
+            // némíthassa el csendben a hibaüzenetet.
+            errorMessage = BackendError.transport(error.localizedDescription).friendlyMessage
         }
         self.store.clear()
         registrar.forgetUploadState()
@@ -132,9 +149,24 @@ final class FamilyLinkModel {
         link = .linked(credentials)
     }
 
-    private func run(_ work: @escaping () async throws -> Void) async {
+    /// Szinkron igény-bejelentés: minden hálózatot érintő művelet ezzel
+    /// indul, még az első `await` előtt. Mivel az osztály `@MainActor`, ez a
+    /// „nézd meg, majd állítsd be" pár egyetlen, megszakíthatatlan lépésben
+    /// fut le — egy másik hívás nem szúrhatja közbe magát a kettő közé, mert
+    /// a MainActor csak a következő valódi felfüggesztési pontnál engedi át
+    /// a vezérlést. `requireUnlinked` a párosítást indító két metódusnak
+    /// (`createFamily`, `joinWithCode`) kell, a többinek nem.
+    private func claim(requireUnlinked: Bool = false) -> Bool {
+        guard !isBusy, !(requireUnlinked && isLinked) else { return false }
         isBusy = true
         errorMessage = nil
+        return true
+    }
+
+    /// Az `isBusy`/`errorMessage` kezdő beállítását a hívó fél (`claim`)
+    /// végzi el — `run` csak a hiba lekezeléséért, az `isBusy` lezárásáért és
+    /// a push-flush-ért felel, hogy ne legyen dupla állítás.
+    private func run(_ work: @escaping () async throws -> Void) async {
         do {
             try await work()
         } catch let error as BackendError {

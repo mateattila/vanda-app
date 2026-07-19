@@ -9,6 +9,14 @@ import Foundation
 import Testing
 @testable import VandaApp
 
+/// Szálbiztos hívásszámláló a párhuzamossági tesztekhez: a `FakeBackend`
+/// maga nem izolált, ezért az átfedő hívások számlálását egy actorba
+/// tesszük, nehogy a teszt saját magába vigyen be adatversenyt.
+private actor CallTracker {
+    private(set) var count = 0
+    func record() { count += 1 }
+}
+
 private final class FakeBackend: FamilyLinking {
     var createFamilyResult: Result<DeviceCredentials, BackendError> = .failure(.notConfigured)
     var redeemResult: Result<DeviceCredentials, BackendError> = .failure(.unknownCode)
@@ -17,11 +25,30 @@ private final class FakeBackend: FamilyLinking {
     var deleteResult: Result<Void, BackendError> = .success(())
     var deleteCalls = 0
 
+    private let createFamilyTracker = CallTracker()
+    private let redeemTracker = CallTracker()
+    var createFamilyCallCount: Int {
+        get async { await createFamilyTracker.count }
+    }
+    var redeemCallCount: Int {
+        get async { await redeemTracker.count }
+    }
+
     func createFamily(deviceName: String) async throws -> DeviceCredentials {
-        try createFamilyResult.get()
+        await createFamilyTracker.record()
+        // Szándékosan felfüggesztjük, hogy egy második, átfedő hívás valóban
+        // el tudjon indulni, mielőtt ez itt visszatérne — enélkül a teszt nem
+        // a valódi versenyhelyzetet mérné, csak a gyors visszatérés miatti
+        // véletlen sorrendet.
+        await Task.yield()
+        await Task.yield()
+        return try createFamilyResult.get()
     }
     func redeemPairingCode(_ code: String, deviceName: String) async throws -> DeviceCredentials {
-        try redeemResult.get()
+        await redeemTracker.record()
+        await Task.yield()
+        await Task.yield()
+        return try redeemResult.get()
     }
     func createPairingCode(role: AppRole, token: String) async throws -> PairingCode {
         try codeResult.get()
@@ -39,6 +66,7 @@ private let childCredentials = DeviceCredentials(
     familyId: "f1", deviceId: "d1", token: "tok", role: .child, deviceName: "Vanda telefonja"
 )
 
+@MainActor
 private func makeModel(
     backend: FakeBackend, store: InMemoryDeviceCredentialStore = InMemoryDeviceCredentialStore()
 ) -> FamilyLinkModel {
@@ -57,6 +85,7 @@ private final class NoopUploader: PushUploader {
     func uploadAPNsToken(_ apnsToken: String, token: String) async throws {}
 }
 
+@MainActor
 struct FamilyLinkModelTests {
 
     @Test func startsUnlinkedWithAnEmptyStore() {
@@ -95,6 +124,38 @@ struct FamilyLinkModelTests {
         await model.createFamily(deviceName: "Másik név")
 
         #expect(store.load()?.deviceName == "Vanda telefonja")
+    }
+
+    @Test func overlappingCreateFamilyCallsOnlyHitTheNetworkOnce() async {
+        // Két, egymást átfedő createFamily hívás (pl. dupla koppintás) közül
+        // csak az egyik juthat el a hálózatig — a másiknak az őrnek le kell
+        // állítania, mielőtt a backendet elérné.
+        let backend = FakeBackend()
+        backend.createFamilyResult = .success(childCredentials)
+        let store = InMemoryDeviceCredentialStore()
+        let model = makeModel(backend: backend, store: store)
+
+        async let first: () = model.createFamily(deviceName: "Első próba")
+        async let second: () = model.createFamily(deviceName: "Második próba")
+        _ = await (first, second)
+
+        #expect(await backend.createFamilyCallCount == 1)
+        #expect(store.load() != nil)
+        #expect(model.isBusy == false)
+    }
+
+    @Test func overlappingJoinWithCodeCallsOnlyHitTheNetworkOnce() async {
+        let backend = FakeBackend()
+        backend.redeemResult = .success(childCredentials)
+        let store = InMemoryDeviceCredentialStore()
+        let model = makeModel(backend: backend, store: store)
+
+        async let first: () = model.joinWithCode("111111", deviceName: "Első próba")
+        async let second: () = model.joinWithCode("222222", deviceName: "Második próba")
+        _ = await (first, second)
+
+        #expect(await backend.redeemCallCount == 1)
+        #expect(store.load() != nil)
     }
 
     @Test func joiningWithABadCodeSurfacesAKindMessage() async {
