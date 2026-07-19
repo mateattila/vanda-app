@@ -25,26 +25,12 @@ struct PairingCodeSheet: View {
 
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    /// A sheet szempontjából releváns fázis: csak a SAJÁT szerepéhez tartozó
-    /// kész kódot vagy hibát fogadja el a `state`-ből. Minden más eset
-    /// (`.idle`, másik szerep `.loading`/`.ready`/`.failed`-je) `.loading`-ként
-    /// jelenik meg — ez garantálja, hogy a sheet SOSE üres, és sosem mutat
-    /// rossz szerephez tartozó kódot.
-    private enum Phase {
-        case loading
-        case ready(PairingCode)
-        case failed(String)
-    }
-
-    private var phase: Phase {
-        switch state {
-        case .ready(let code) where code.role == role:
-            return .ready(code)
-        case .failed(let failedRole, let message) where failedRole == role:
-            return .failed(message)
-        default:
-            return .loading
-        }
+    /// A sheet szempontjából releváns fázis: a `state.phase(for:)` (lásd
+    /// `FamilyLinkModel.swift`) szűri rá a modell teljes állapotát a sheet
+    /// saját szerepére — így garantált, hogy a sheet SOSE üres, és sosem
+    /// mutat rossz szerephez tartozó kódot.
+    private var phase: PairingCodePhase {
+        state.phase(for: role)
     }
 
     private var title: String {

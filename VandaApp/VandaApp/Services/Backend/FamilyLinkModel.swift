@@ -38,6 +38,37 @@ enum PairingCodeState: Equatable {
     case failed(role: AppRole, message: String)
 }
 
+/// A `PairingCodeSheet` szempontjából releváns fázis: csak a sheet SAJÁT
+/// szerepéhez tartozó kész kódot vagy hibát fogadja el. Ez korábban a nézet
+/// belsejében, egy privát `Phase` enumként és `where`-kikötéses szűrésként
+/// élt — semmi sem tesztelte, egy jövőbeli, meglazított `where`-kikötés pedig
+/// csendben visszahozhatta volna azt a hibát, amit ez a szűrés eredetileg
+/// javított (lásd finding 1: a sheet sose lehet üres, és sose mutathat másik
+/// szerephez kiadott kódot). Ide, a `PairingCodeState` mellé költöztetve
+/// tiszta függvényként tesztelhető nézet nélkül is.
+enum PairingCodePhase: Equatable {
+    case loading
+    case ready(PairingCode)
+    case failed(String)
+}
+
+extension PairingCodeState {
+    /// Minden, ami NEM a megadott szerephez tartozó kész kód vagy hiba
+    /// (beleértve a `.idle`-t és egy MÁSIK szerep `.loading`/`.ready`/
+    /// `.failed`-jét is), `.loading`-ra képződik le — így a hívó sose kap
+    /// üres vagy rossz szerephez tartozó fázist.
+    func phase(for role: AppRole) -> PairingCodePhase {
+        switch self {
+        case .ready(let code) where code.role == role:
+            return .ready(code)
+        case .failed(let failedRole, let message) where failedRole == role:
+            return .failed(message)
+        default:
+            return .loading
+        }
+    }
+}
+
 /// MainActor-izolált (explicit, nem a projekt alapértelmezésére támaszkodva):
 /// az idempotencia-őrnek (lásd `claim(requireUnlinked:)`) szinkron
 /// ellenőrzés-és-állításra van szüksége, amit csak akkor garantál a nyelv,

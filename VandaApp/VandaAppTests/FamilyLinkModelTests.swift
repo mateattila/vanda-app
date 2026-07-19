@@ -426,3 +426,53 @@ struct FamilyLinkModelTests {
         #expect(model.failedCount == 1)
     }
 }
+
+/// A `PairingCodeState.phase(for:)` tesztjei — a `PairingCodeSheet`-ből
+/// kiemelt, korábban tesztelhetetlen szűrés (lásd finding 2: a nézet privát
+/// `Phase` enumja és `where`-kikötéses szűrése garantálta, hogy a sheet sose
+/// üres, és sose mutat másik szerephez tartozó kódot; most már nézet nélkül,
+/// tisztán tesztelhető).
+struct PairingCodePhaseTests {
+
+    private let childCode = PairingCode(
+        code: "111111", expiresAt: Date(timeIntervalSince1970: 1), role: .child
+    )
+    private let parentCode = PairingCode(
+        code: "222222", expiresAt: Date(timeIntervalSince1970: 2), role: .parent
+    )
+
+    @Test func idleIsAlwaysLoading() {
+        #expect(PairingCodeState.idle.phase(for: .child) == .loading)
+        #expect(PairingCodeState.idle.phase(for: .parent) == .loading)
+    }
+
+    @Test func loadingForTheSameRoleIsLoading() {
+        #expect(PairingCodeState.loading(role: .child).phase(for: .child) == .loading)
+    }
+
+    @Test func readyForTheSameRoleIsReadyWithThatCode() {
+        #expect(PairingCodeState.ready(childCode).phase(for: .child) == .ready(childCode))
+    }
+
+    @Test func readyForTheOtherRoleIsLoading() {
+        // A szerep-átszivárgás elleni védelem: egy szülőnek kiadott kód sose
+        // jelenhet meg a gyerek sheet-jén (és fordítva).
+        #expect(PairingCodeState.ready(parentCode).phase(for: .child) == .loading)
+        #expect(PairingCodeState.ready(childCode).phase(for: .parent) == .loading)
+    }
+
+    @Test func failedForTheSameRoleIsFailedWithTheMessage() {
+        #expect(
+            PairingCodeState.failed(role: .child, message: "hiba").phase(for: .child)
+                == .failed("hiba")
+        )
+    }
+
+    @Test func failedForTheOtherRoleIsLoading() {
+        // Ugyanaz a szerep-átszivárgás elleni védelem, hibaüzenetre: egy
+        // szülő-kérés hibája sose villanhat fel a gyerek sheet-jén.
+        #expect(
+            PairingCodeState.failed(role: .parent, message: "hiba").phase(for: .child) == .loading
+        )
+    }
+}
