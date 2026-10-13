@@ -288,3 +288,29 @@ struct VaultTests {
         #expect(try vault.open(entryB).text == "második")
     }
 }
+
+// MARK: - Gyári emlékeztető-csomag
+
+@MainActor
+struct ReminderSeederTests {
+
+    private func makeContext() throws -> ModelContext {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        let container = try ModelContainer(for: Reminder.self, configurations: configuration)
+        return ModelContext(container)
+    }
+
+    @Test func seedsPackEvenWhenPhotoPromptArrivedFirst() throws {
+        let context = try makeContext()
+        let photoPrompt = Reminder()
+        photoPrompt.source = .factory
+        context.insert(photoPrompt)
+
+        ReminderSeeder.seedFactoryPackIfNeeded(in: context)
+        let seeded = try context.fetchCount(FetchDescriptor<Reminder>())
+        #expect(seeded > 1)
+
+        ReminderSeeder.seedFactoryPackIfNeeded(in: context)
+        #expect(try context.fetchCount(FetchDescriptor<Reminder>()) == seeded)
+    }
+}

@@ -10,10 +10,12 @@ import SwiftData
 
 enum ReminderSeeder {
 
-    /// Csak üres katalógusnál fut (ugyanaz az elv, mint az ActivitySeedernél).
+    /// Akkor fut, ha a csomag még nincs bent. Gyári emlékeztető nem törölhető,
+    /// így a csomagnál kevesebb gyári elem azt jelenti, hogy még nem seedeltünk —
+    /// a napló fotó-promptja vagy egy saját emlékeztető ezt nem akadályozza.
     static func seedFactoryPackIfNeeded(in context: ModelContext) {
-        let count = (try? context.fetchCount(FetchDescriptor<Reminder>())) ?? 0
-        guard count == 0 else { return }
+        let reminders = (try? context.fetch(FetchDescriptor<Reminder>())) ?? []
+        guard reminders.filter({ $0.source == .factory }).count < factoryPack.count else { return }
 
         for item in factoryPack {
             let reminder = Reminder()
