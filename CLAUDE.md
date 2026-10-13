@@ -16,7 +16,7 @@ Személyes iOS-app Vandának (iPhone + iPad). Swift + SwiftUI, SwiftData + Cloud
   ```sh
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
   xcodebuild -project VandaApp/VandaApp.xcodeproj -scheme VandaApp \
-    -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+    -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build
   ```
 
   (A `DEVELOPER_DIR` azért kell, mert a gépen a `xcode-select` a CommandLineTools-ra mutat.)
