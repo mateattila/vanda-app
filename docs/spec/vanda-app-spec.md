@@ -99,7 +99,7 @@ A **tevékenység-katalógus** (`Activity`) közös háttere három nézetnek: u
 **Cél:** kedves, testreszabható emlékeztetők bármilyen témában.
 
 **Működés:**
-- **Gyári csomag** (ki-be kapcsolható, szövege átírható): vitamin, reggeli pohár víz, fogszabályzó, fogmosás, "ettél?", "ittál?", "kimentél már ma? touch grass!", "go feed the sheep!".
+- **Gyári csomag** (ki-be kapcsolható, szövege átírható): vitamin, reggeli pohár víz, fogmosás, "ettél?", "ittál?", "kimentél már ma? touch grass!", "go feed the sheep!".
 - **Saját emlékeztetők:** cím, saját szöveg, emoji/ikon (SF Symbols + emoji picker), szín, ütemezés (napi/heti/egyedi időpontok).
 - Lokális notificationök, **nem** agresszívek (nem AlarmKit).
 - **Visszajelzés-hurok:** a notificationön action gomb ("✓ kész"), aminek eredménye a Napi progress falba folyik (`ReminderLog`). Emlékeztetőnként kapcsolható, hogy kér-e visszajelzést.

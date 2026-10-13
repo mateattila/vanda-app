@@ -43,7 +43,6 @@ enum ReminderSeeder {
         Seed(title: "Vitamin", text: "Vitamin-idő! 💊", emoji: "💊", colorHex: 0xF2A65A, times: [(8, 0)]),
         Seed(title: "Pohár víz", text: "Egy pohár vizet reggelre 💙", emoji: "💧", colorHex: 0x6FA8E8, times: [(7, 30)]),
         Seed(title: "Fogmosás", text: "Fogmosás-parti 🪥✨", emoji: "🪥", colorHex: 0x8A7DE0, times: [(7, 45), (21, 30)]),
-        Seed(title: "Fogszabályzó", text: "Fogszabályzó be! 🦷", emoji: "🦷", colorHex: 0xEC6F9E, times: [(21, 0)]),
         Seed(title: "Ettél?", text: "Ettél már valami jót? 🍎", emoji: "🍎", colorHex: 0xE06A5E, times: [(13, 0)]),
         Seed(title: "Ittál?", text: "Kortyolj egyet! 🥤", emoji: "🥤", colorHex: 0x5FB89C, times: [(16, 0)]),
         Seed(title: "Kimozdulás", text: "Kimentél már ma? Touch grass! 🌿", emoji: "🌿", colorHex: 0x5FB89C, times: [(15, 0)]),
