@@ -207,6 +207,21 @@ struct VaultTests {
         #expect(vault.isUnlocked)
     }
 
+    @Test func resetReturnsVaultToNotSetUp() throws {
+        let vault = JournalVault(keyStore: InMemoryKeyStore())
+        let recoveryCode = try vault.setUp(pin: "1234")
+
+        vault.reset()
+        #expect(!vault.isSetUp)
+        #expect(!vault.isUnlocked)
+        #expect(throws: (any Error).self) {
+            try vault.unlock(pin: "1234")
+        }
+        #expect(throws: (any Error).self) {
+            try vault.unlockWithRecovery(code: recoveryCode, context: try makeContext())
+        }
+    }
+
     @Test func recoveryUnlockWritesAuditEvent() throws {
         let vault = JournalVault(keyStore: InMemoryKeyStore())
         let recoveryCode = try vault.setUp(pin: "1234")

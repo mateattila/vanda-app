@@ -16,6 +16,9 @@ struct JournalGateView: View {
     /// A beállítás-flow a recovery-kulcs nyugtázásáig tart — akkor is, ha a
     /// vault közben már „beállított" állapotú.
     @State private var isSettingUp = false
+    #if DEBUG
+    @State private var isResetConfirmPresented = false
+    #endif
 
     var body: some View {
         Group {
@@ -26,6 +29,24 @@ struct JournalGateView: View {
                 }
             } else if !vault.isUnlocked {
                 JournalLockView(vault: vault)
+                    #if DEBUG
+                    .safeAreaInset(edge: .bottom) {
+                        Button("Napló törlése és újrakezdés (debug)") {
+                            isResetConfirmPresented = true
+                        }
+                        .font(.vandaCaption())
+                        .foregroundStyle(Color.zoneRed)
+                        .padding(.bottom, Theme.Spacing.cardGap)
+                    }
+                    .confirmationDialog(
+                        "Minden naplóbejegyzés, fotó és a PIN is törlődik. Ez nem vonható vissza.",
+                        isPresented: $isResetConfirmPresented, titleVisibility: .visible
+                    ) {
+                        Button("Törlés és újrakezdés", role: .destructive) {
+                            resetJournal()
+                        }
+                    }
+                    #endif
             } else {
                 JournalHomeView(vault: vault)
             }
@@ -39,6 +60,19 @@ struct JournalGateView: View {
             }
         }
     }
+
+    #if DEBUG
+    /// A borítékokkal együtt a tartalom is megy: az új kulccsal a régi
+    /// bejegyzések úgysem nyithatók. Egyenként törlünk, hogy a CloudKit is kövesse.
+    private func resetJournal() {
+        try? modelContext.fetch(FetchDescriptor<JournalEntry>()).forEach(modelContext.delete)
+        try? modelContext.fetch(FetchDescriptor<JournalPhoto>()).forEach(modelContext.delete)
+        try? modelContext.fetch(FetchDescriptor<JournalAuditEvent>()).forEach(modelContext.delete)
+        try? modelContext.save()
+        vault.reset()
+        isSettingUp = true
+    }
+    #endif
 
     /// Fotó-prompt emlékeztető (spec 4.5): a napló beállításakor kerül be,
     /// egyszer — utána a normál emlékeztető-rendszerben él (átírható, kikapcsolható).

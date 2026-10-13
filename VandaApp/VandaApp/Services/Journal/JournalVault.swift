@@ -106,6 +106,17 @@ final class JournalVault {
         contentKey = nil
     }
 
+    #if DEBUG
+    /// Fejlesztői reset: mindkét boríték törlődik, a régi bejegyzések ezután
+    /// semmivel nem nyithatók. Éles buildben nincs — nyom nélkül tüntetné el
+    /// a pecsétet.
+    func reset() {
+        keyStore.remove(Self.pinEnvelopeKey)
+        keyStore.remove(Self.recoveryEnvelopeKey)
+        contentKey = nil
+    }
+    #endif
+
     // MARK: - Bejegyzések
 
     func seal(_ payload: JournalPayload, previousEntry: JournalEntry?) throws -> JournalEntry {
