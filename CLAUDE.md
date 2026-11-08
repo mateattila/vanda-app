@@ -10,7 +10,7 @@ Személyes iOS-app Vandának (iPhone + iPad). Swift + SwiftUI, SwiftData + Cloud
 ## Munkamódszer
 
 - **Fázisonként haladunk** a spec 7. fejezete szerint. **Jelenlegi fázis: 4 (Panikgomb és backend); ezen belül a 4.1 (panik 1. szint), a 4.2a (backend: párosítás + APNs) és a 4.2b (iOS: párosítás, push-regisztráció, teszt-push) kész — következik a 4.3 (panik 2. szint: riasztás + szülő-módú fogadás).** A 0–3. fázis kész. Ne implementálj későbbi fázisokhoz tartozó funkciót, még „ha már itt vagyunk" alapon sem.
-- **Attilára váró, még el nem végzett lépések** (ezek hiánya nem hiba, ne próbáld kikerülni őket): a backend deploy + APNs p8 kulcs a `backend/README.md` ellenőrzőlistája szerint, utána a `VandaApp/Config/Backend.xcconfig`-ban a `BACKEND_HOST` átírása a valódi hosztra és a 4.2b eszközös záró tesztje; továbbá a 0. fázis iPhone↔iPad CloudKit-szinkron tesztje. A 4.3 két ismert, tudatosan örökölt korlátot visz tovább — lásd `docs/decisions.md`, 2026-07-20.
+- **Attilára váró, még el nem végzett lépések** (ezek hiánya nem hiba, ne próbáld kikerülni őket): a 0. fázis iPhone↔iPad CloudKit-szinkron tesztje. A backend élesben fut (`https://vanda-backend.mate-attila.workers.dev`, Cloudflare D1 `weur`), az APNs-secretek fent vannak, a 4.2b teszt-push eszközön átment. A 4.3 két ismert, tudatosan örökölt korlátot visz tovább — lásd `docs/decisions.md`, 2026-07-20.
 - Egy fázison belül **kis, önállóan buildelhető lépésekben** dolgozz. Minden lépés végén az alábbi buildnek hibátlanul le kell futnia:
 
   ```sh
