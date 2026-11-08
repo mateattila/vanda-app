@@ -4,4 +4,4 @@
 //
 // A deploy után (backend/README.md ellenőrzőlista) írd ide a workers.dev hosztot,
 // pl.: BACKEND_HOST = vanda.attis.workers.dev
-BACKEND_HOST = vanda-backend.example.workers.dev
+BACKEND_HOST = vanda-backend.mate-attila.workers.dev

@@ -18,7 +18,7 @@
     {
       "binding": "DB",
       "database_name": "vanda",
-      "database_id": "REPLACE-AFTER-wrangler-d1-create",
+      "database_id": "23b7af02-b8b2-4f1d-9ebb-5f13c9611681",
       "migrations_dir": "migrations"
     }
   ]
